@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LabLens</title>
+<meta name="description" content="Analyze lab data and make publication-quality figures without writing code. Python runs in your browser; your data never leaves your computer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='14' cy='14' r='9' fill='none' stroke='%232456C7' stroke-width='3'/%3E%3Cpath d='M21 21l7 7' stroke='%232456C7' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M9 17l3-4 3 2 3-5' fill='none' stroke='%232456C7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M21 21l7 7" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M9 17l3-4 3 2 3-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span class="brand-name">LabLens</span>
+  </div>
+  <input id="project-name" class="project-name" type="text" aria-label="Project name" spellcheck="false">
+  <span id="example-badge" class="badge badge-example" hidden>Example data</span>
+  <div class="topbar-actions">
+    <span id="engine-status" class="status status-loading" role="status"><span class="dot"></span><span class="status-text">Starting Python</span></span>
+    <button id="btn-new" class="btn btn-ghost" type="button">New</button>
+    <button id="btn-open" class="btn btn-ghost" type="button">Open</button>
+    <button id="btn-save" class="btn btn-ghost" type="button" title="Save project (⌘S)">Save</button>
+    <input id="open-file" type="file" accept=".json,.lablens" hidden>
+  </div>
+</header>
+
+<main class="workbench">
+  <aside class="controls" aria-label="Analysis setup">
+    <nav class="steps" role="tablist">
+      <button class="step" role="tab" data-step="analysis" id="tab-analysis"><span class="step-num">1</span>Analysis</button>
+      <button class="step" role="tab" data-step="data" id="tab-data"><span class="step-num">2</span>Data</button>
+      <button class="step" role="tab" data-step="settings" id="tab-settings"><span class="step-num">3</span>Settings</button>
+      <button class="step" role="tab" data-step="style" id="tab-style"><span class="step-num">4</span>Style</button>
+    </nav>
+    <div class="panel" id="panel-analysis" role="tabpanel"></div>
+    <div class="panel" id="panel-data" role="tabpanel" hidden></div>
+    <div class="panel" id="panel-settings" role="tabpanel" hidden></div>
+    <div class="panel" id="panel-style" role="tabpanel" hidden></div>
+  </aside>
+
+  <section class="stage" aria-label="Results">
+    <div id="loading" class="loading">
+      <div class="loading-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <h2>Getting the Python engine ready</h2>
+        <p id="loading-text">Starting Python</p>
+        <p class="fine">The first visit downloads Python with NumPy, SciPy, pandas and matplotlib (about 30&nbsp;MB). Your browser keeps it, so later visits start faster. Everything runs on your computer; your data is never uploaded.</p>
+      </div>
+    </div>
+    <div id="error-box" class="callout callout-bad" hidden></div>
+    <div id="figures" class="figures"></div>
+    <div id="results" class="results" hidden>
+      <div id="summary" class="summary"></div>
+      <div class="result-tabs" role="tablist">
+        <button class="rtab" data-rtab="tables" type="button">Tables</button>
+        <button class="rtab" data-rtab="methods" type="button">Methods text</button>
+        <button class="rtab" data-rtab="python" type="button">Python script</button>
+      </div>
+      <div id="rpanel-tables" class="rpanel"></div>
+      <div id="rpanel-methods" class="rpanel" hidden></div>
+      <div id="rpanel-python" class="rpanel" hidden></div>
+    </div>
+  </section>
+</main>
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
