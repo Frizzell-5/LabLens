@@ -155,7 +155,6 @@ run("horizontal violin, dark background, font size 12, hide the legend", s=>s.or
 run("remove the top and right axes then add minor ticks", s=>!s.spine_top&&!s.spine_right&&s.minor_ticks, {style:{spine_top:true,spine_right:true}});
 // unknowns
 run("make it pop", (s,x)=>x.res.unknown.length===1 && x.res.changes.length===0);
-console.log(`\n${pass} passed, ${fail} failed`);
 run("make the error bars black", (s,x)=>!G(s,"Saline").color && x.res.unknown.length===1);
 run("make the axes thicker", s=>s.axis_width>0.9 && !G(s,"Saline").color);
 run("make the title red", (s,x)=>!G(s,"Saline").color);
@@ -174,7 +173,6 @@ run("a line at 100", s=>s.ref_lines==="y=100");
 run("make it look like a Nature paper", (s,x)=>x.res.unknown.length===1);
 run("larger font and thicker lines", s=>s.font_size===12 && s.line_width>1.5);
 run("Saline and Morphine black", s=>G(s,"Saline").color==="#000000"||G(s,"Morphine").color==="#000000");
-console.log(`\n${pass} passed, ${fail} failed`);
 run("horizontal violin plot with dashed horizontal gridlines", s=>s.orientation==="horizontal" && s.plot_kind==="violin" && s.grid==="y" && s.grid_style==="dashed");
 run("use Poppins and font size 12", s=>s.font==="poppins" && s.font_size===12);
 run("horizontal gridlines", s=>s.grid==="y" && s.orientation===undefined);
@@ -183,6 +181,5 @@ run("horizontal line at 50", s=>s.ref_lines==="y=50" && s.orientation===undefine
 run("vertical gridlines", s=>s.grid==="x" && s.orientation===undefined);
 run("make it vertical", s=>s.orientation==="vertical", {style:{orientation:"horizontal"}});
 run("serif font size 9", s=>s.font==="serif" && s.font_size===9);
-console.log(`\n${pass} passed, ${fail} failed`);
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
