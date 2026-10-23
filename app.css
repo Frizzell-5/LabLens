@@ -279,6 +279,8 @@ textarea.data-text { font: 12px/1.5 var(--font-data); white-space: pre; overflow
 .command-feedback:empty { display: none; }
 .cmd-chip { font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--ok-soft); color: var(--ok); }
 .cmd-chip.miss { background: var(--warn-soft); color: var(--warn); border-radius: 6px; }
+.cmd-suggest { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--accent); cursor: pointer; }
+.cmd-suggest:hover { border-style: solid; }
 .command-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .command-examples { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; min-width: 0; }
 .command-examples button { font-size: 11.5px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line); background: var(--stage); color: var(--muted); cursor: pointer; }
@@ -328,3 +330,15 @@ textarea.data-text { font: 12px/1.5 var(--font-data); white-space: pre; overflow
 .brand-name { text-decoration: none; }
 #panel-analysis, #panel-data { gap: 16px; }
 #panel-analysis > .panel-intro, #panel-data > .panel-intro { margin-bottom: 0; }
+
+/* Wide content (sessions table, previews, figures) scrolls inside its own box instead of widening the page */
+.workbench > *, .controls, .panel, .section-static, .section-body, details.section, .field, .figure-card, .figures, .stage { min-width: 0; }
+.figure-card { max-width: 100%; }
+.figure-head { min-width: 0; }
+@media (max-width: 860px) {
+  .workbench { grid-template-columns: minmax(0, 1fr); }
+  .steps .step { font-size: 12px; }
+  .figure-head .btn-small { padding: 3px 7px; }
+  .command-row .btn { flex: none; }
+}
+.sessions-table td:nth-child(2) input { min-width: 88px; }

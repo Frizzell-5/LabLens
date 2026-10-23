@@ -247,7 +247,7 @@ footer .sp { margin-left: auto; }
   <!-- Hero -->
   <section class="hero">
     <div class="wrap">
-      <div class="eyebrow rise"><span>v0.3</span><i></i><span>Free</span><i></i><span>Runs in your browser</span></div>
+      <div class="eyebrow rise"><span>v0.4</span><i></i><span>Free</span><i></i><span>Runs in your browser</span></div>
       <h1 class="rise d1">Raw lab data in. <em>Publication figures</em> out.</h1>
       <p class="lede rise d2">Serpentine runs the statistics and draws the figures for you, using the same Python tools behind countless published studies. You choose everything from plain menus and never write a line of code. Your data stays on your computer.</p>
       <div class="cta rise d3">
@@ -545,6 +545,7 @@ M2      KO         29.4
             </ul>
             <h4>Plain-English commands</h4>
             <p>Above your figure is a command bar. Type what you want and press Enter, for example <code>remove gridlines</code>, <code>make Saline navy and Morphine coral</code>, <code>horizontal violin plot</code>, <code>y axis from 0 to 1000</code> or <code>title Day 21</code>. Combine several with “and” or commas. Serpentine shows exactly what it changed, and <strong>What can I say?</strong> lists the kinds of commands it understands. It runs on your computer, so it's instant and private. Press <kbd>↑</kbd> to bring back an earlier command.</p>
+            <p>Commands also reach the analysis itself and a few actions: <code>baseline from -2 to 0</code>, <code>10 second bins</code>, <code>use the nadir</code>, <code>percent of control</code>, <code>use a nonparametric test</code>, <code>put Morphine first</code>, <code>export as pdf</code>. Describe a feel, like <code>make it look professional</code> or <code>for my presentation</code>, and it picks a matching style. Small typos are corrected, and when it can't tell what you meant it suggests the closest commands.</p>
             <h4>Your own styles</h4>
             <p>Name the current look and press <strong>Save style</strong> to reuse it in any project. <strong>Export style file</strong> saves it as a file that colleagues can import, so a lab can share one house style.</p>
             <h4>Advanced: Python</h4>
@@ -571,7 +572,8 @@ M2      KO         29.4
             <h3>Troubleshooting</h3>
             <ul>
               <li><strong>Stuck on “Starting Python”.</strong> Serpentine needs an internet connection to load the Python engine the first time. Check your connection and reload.</li>
-              <li><strong>A column reads as text.</strong> Usually a stray word or unit inside the numbers. Fix the cell, or delete the units row.</li>
+              <li><strong>A column reads as text.</strong> Usually a stray word inside the numbers. Values with units attached, such as <code>48.2 mL/min</code>, are read as numbers automatically.</li>
+              <li><strong>“Time jumps back” note.</strong> A new LabChart block restarted the clock at 0:00. Serpentine keeps the first block; paste later blocks as their own session if you need them.</li>
               <li><strong>“Couldn't read the time”.</strong> Write event and exclusion times as <code>13:27</code>, <code>0:13:27</code> or plain seconds like <code>807</code>.</li>
               <li><strong>The downloaded copy shows a blank page.</strong> Start it with the launcher file rather than opening <code>app.html</code> directly, because browsers block the Python engine on pages opened from disk.</li>
             </ul>
@@ -613,7 +615,7 @@ M2      KO         29.4
 
 <footer>
   <div class="wrap">
-    <span><b style="color:var(--ink)">Serpentine</b> v0.3 · Made by Shadan Alrawi</span>
+    <span><b style="color:var(--ink)">Serpentine</b> v0.4 · Made by Shadan Alrawi</span>
     <a href="https://github.com/Frizzell-5/Serpentine">GitHub</a>
     <a href="https://github.com/Frizzell-5/Serpentine/issues">Report an issue</a>
     <span class="sp">Built on Pyodide, NumPy, SciPy, pandas and matplotlib.</span>

@@ -9,10 +9,10 @@ let pass=0, fail=0;
 function run(cmd, check, opts={}) {
   const style = {grid:"none", legend:"best", groups:{}, palette:"serpentine", ...(opts.style||{})};
   const settings = {band:"sem", ...(opts.settings||{})};
-  let preset=null, undone=false, reset=false;
+  let preset=null, undone=false, reset=false, action=null, redone=false;
   const res = interpretCommand(cmd, {style, settings, analysis: opts.analysis||"compare", groups: opts.groups||groups, colormaps: CMAPS, parseColor,
-    applyPreset:(n)=>{preset=n; return true;}, undo:()=>{undone=true;}, resetStyle:()=>{reset=true;}});
-  let ok; try { ok = check(style, {res, preset, undone, reset, settings}); } catch(e) { ok=false; }
+    applyPreset:(n)=>{preset=n; return true;}, undo:()=>{undone=true;}, resetStyle:()=>{reset=true;}, redo:()=>{redone=true;}, action:(n,a)=>{action=n+(a?":"+a:"");}});
+  let ok; try { ok = check(style, {res, preset, undone, reset, settings, action, redone}); } catch(e) { ok=false; }
   if (ok) pass++; else { fail++; console.log("FAIL:", JSON.stringify(cmd), "\n   changes:", res.changes, "\n   unknown:", res.unknown, "\n   style:", JSON.stringify(Object.fromEntries(Object.entries(style).filter(([k,v])=>!["legend","palette"].includes(k)||v!=={legend:"best",palette:"serpentine"}[k])))); }
 }
 const G = (s,n) => (s.groups[n]||{});
@@ -170,7 +170,7 @@ run("make the saline bar outlined", s=>s.fill==="outline");
 run("horizontal gridlines", s=>s.grid==="y" && s.orientation===undefined);
 run("horizontal legend", s=>s.legend==="outside top" && s.orientation===undefined);
 run("a line at 100", s=>s.ref_lines==="y=100");
-run("make it look like a Nature paper", (s,x)=>x.res.unknown.length===1);
+run("make it look like a Nature paper", (s,x)=>x.preset==="journal");
 run("larger font and thicker lines", s=>s.font_size===12 && s.line_width>1.5);
 run("Saline and Morphine black", s=>G(s,"Saline").color==="#000000"||G(s,"Morphine").color==="#000000");
 run("horizontal violin plot with dashed horizontal gridlines", s=>s.orientation==="horizontal" && s.plot_kind==="violin" && s.grid==="y" && s.grid_style==="dashed");
@@ -181,5 +181,119 @@ run("horizontal line at 50", s=>s.ref_lines==="y=50" && s.orientation===undefine
 run("vertical gridlines", s=>s.grid==="x" && s.orientation===undefined);
 run("make it vertical", s=>s.orientation==="vertical", {style:{orientation:"horizontal"}});
 run("serif font size 9", s=>s.font==="serif" && s.font_size===9);
+
+// ---- v0.4 phrases
+const TC = {analysis:"timecourse"}, CMP = {analysis:"compare"}, COR = {analysis:"correlation"}, DOSE = {analysis:"dose", groups:[{name:"A",label:"A"},{name:"B",label:"B"}]};
+// typos, number words, carry-over
+run("remove the legand", s=>s.legend==="none");
+run("make it verticle", s=>s.orientation==="vertical", {style:{orientation:"horizontal"}});
+run("font size twelve", s=>s.font_size===12);
+run("remove the gridlines and legend", s=>s.grid==="none" && s.legend==="none", {style:{grid:"y"}});
+run("hide the stars and the points", s=>s.sig==="none" && s.show_points===false);
+run("remove the title, the legend", s=>s.title==="" && s.legend==="none", {style:{title:"x"}});
+run("one-sided error bars", s=>s.error_dir==="up");
+// vibes
+run("make it look professional", (s,x)=>x.preset==="journal");
+run("publication ready", (s,x)=>x.preset==="journal");
+run("make it playful", (s,x)=>x.preset==="sketch");
+run("make it look modern", (s,x)=>x.preset==="minimal");
+run("style it for a poster", (s,x)=>x.preset==="poster");
+run("for my presentation", (s,x)=>x.preset==="slides");
+run("make it look like prism", (s,x)=>x.preset==="classic");
+run("make it elegant", (s,x)=>x.preset==="editorial");
+run("make it look retro", (s,x)=>x.preset==="typewriter");
+run("make it simple", (s,x)=>x.preset==="clean");
+// everything / readability
+run("make everything bigger", s=>s.font_size===12 && s.marker_size>5 && s.line_width>1.5);
+run("make it more readable", s=>s.font_size===12);
+run("bold everything", s=>s.title_bold && s.label_bold);
+// italic
+run("italic title", s=>s.title_italic===true);
+run("italicize the group names", s=>s.tick_italic===true);
+run("italic axis labels", s=>s.label_italic===true);
+run("make the gene names italic", s=>s.tick_italic===true);
+// actions
+run("export as pdf", (s,x)=>x.action==="export:pdf");
+run("download it as a png", (s,x)=>x.action==="export:png");
+run("save as tiff", (s,x)=>x.action==="export:tiff");
+run("copy the figure", (s,x)=>x.action==="copy");
+run("save my project", (s,x)=>x.action==="save");
+run("download the python script", (s,x)=>x.action==="script");
+run("redo", (s,x)=>x.redone);
+// group order and colors
+run("put Morphine first", (s,x)=>x.settings.group_order==="Morphine, Saline");
+run("move saline to the end", (s,x)=>x.settings.group_order==="Morphine, Saline");
+run("reverse the group order", (s,x)=>x.settings.group_order==="Morphine, Saline");
+run("order: Drug 30 mg/kg, Vehicle, Drug 10 mg/kg", (s,x)=>x.settings.group_order==="Drug 30 mg/kg, Vehicle, Drug 10 mg/kg", {groups:groups3});
+run("reorder the groups to drug 10, drug 30, vehicle", (s,x)=>x.settings.group_order==="Drug 10 mg/kg, Drug 30 mg/kg, Vehicle", {groups:groups3});
+run("swap the colors", s=>G(s,"Saline").color==="#d1495b" && G(s,"Morphine").color==="#2f5d8a");
+run("swap the order of saline and morphine", (s,x)=>x.settings.group_order==="Morphine, Saline");
+run("make morphine lighter", s=>G(s,"Morphine").color && G(s,"Morphine").color!=="#d1495b" && !G(s,"Saline").color);
+run("make all the colors darker", s=>G(s,"Saline").color && G(s,"Morphine").color);
+run("warmer colors", s=>s.palette==="sunset");
+run("make the colors more vibrant", s=>s.palette==="tol");
+run("cooler colors", s=>s.palette==="ocean");
+// legend size, ticks, fill, outlines, shape
+run("make the legend smaller", s=>s.legend_size<8.5);
+run("legend font size 7", s=>s.legend_size===7);
+run("fewer ticks", s=>s.y_nticks===4);
+run("more x ticks", s=>s.x_nticks===10);
+run("5 ticks", s=>s.y_nticks===5);
+run("make the bars more transparent", s=>s.fill_alpha<0.25);
+run("darker fill", s=>s.fill_alpha>0.25);
+run("remove the outlines from the bars", s=>s.edge_width===0);
+run("landscape", s=>s.width>s.height);
+run("portrait", s=>s.height>s.width);
+run("half the size", s=>s.width===2);
+// timecourse settings
+run("baseline from -2 to 0", (s,x)=>x.settings.baseline_start===-2 && x.settings.baseline_end===0, TC);
+run("use the last 2 minutes before injection as baseline", (s,x)=>x.settings.baseline_start===-2 && x.settings.baseline_end===0, TC);
+run("endpoint 20 to 30", (s,x)=>x.settings.endpoint_start===20 && x.settings.endpoint_end===30, TC);
+run("show from -10 to 60", (s,x)=>x.settings.window_start===-10 && x.settings.window_end===60, TC);
+run("10 second bins", (s,x)=>x.settings.bin===10, TC);
+run("bin size 1 min", (s,x)=>x.settings.bin===60, TC);
+run("no binning", (s,x)=>x.settings.bin===0, TC);
+run("percent of baseline", (s,x)=>x.settings.norm==="pct", TC);
+run("raw values", (s,x)=>x.settings.norm==="raw", TC);
+run("change from baseline", (s,x)=>x.settings.norm==="delta", TC);
+run("use the nadir", (s,x)=>x.settings.metric==="min", TC);
+run("use area under the curve", (s,x)=>x.settings.metric==="auc", TC);
+run("pair by subject", (s,x)=>x.settings.pair_subjects===true, TC);
+run("unpaired", (s,x)=>x.settings.pair_subjects===false, TC);
+run("rename the injection to Morphine i.p.", (s,x)=>x.settings.event_label==="Morphine i.p.", TC);
+run("time is in minutes", (s,x)=>x.settings.time_unit==="minutes", TC);
+run("baseline -2 to 0 and endpoint 25 to 30", (s,x)=>x.settings.baseline_start===-2 && x.settings.endpoint_start===25, TC);
+// compare settings
+run("paired", (s,x)=>x.settings.paired===true, CMP);
+run("use a nonparametric test", (s,x)=>x.settings.test==="nonparam", CMP);
+run("use ANOVA", (s,x)=>x.settings.test==="param", CMP);
+run("compare everything to the control", (s,x)=>x.settings.posthoc==="control", CMP);
+run("all pairwise comparisons", (s,x)=>x.settings.posthoc==="all", CMP);
+run("percent of control", (s,x)=>x.settings.normalize==="pct_control", CMP);
+run("normalize to the vehicle", (s,x)=>x.settings.normalize==="pct_control", CMP);
+run("fold change", (s,x)=>x.settings.normalize==="fold_control", CMP);
+run("welch", (s,x)=>x.settings.equal_var===false, CMP);
+// correlation / dose
+run("use spearman", (s,x)=>x.settings.method==="spearman", COR);
+run("hide the fit line", (s,x)=>x.settings.fit===false, COR);
+run("remove the confidence band", (s,x)=>x.settings.ci===false, COR);
+run("fix the bottom at 0", (s,x)=>x.settings.fix_bottom==="0", DOSE);
+run("fix top at 100", (s,x)=>x.settings.fix_top==="100", DOSE);
+run("call it IC50", (s,x)=>x.settings.ec_label==="IC50", DOSE);
+run("hide the ec50 lines", (s,x)=>x.settings.show_ec50===false, DOSE);
+// things that must NOT change the wrong setting
+run("make the gridlines lighter", s=>s.grid_alpha<0.15 && !G(s,"Saline").color, {style:{grid:"y"}});
+run("lighter background", (s,x)=>!G(s,"Saline").color);
+run("title Morphine first dose", s=>s.title==="Morphine first dose");
+run("y axis label 10 second bins", s=>s.ylabel==="10 second bins");
+
+// spelling correction
+run("gridlnes off", s=>s.grid==="none", {style:{grid:"y"}});
+run("remvoe the legend", s=>s.legend==="none");
+run("make it horizonatl", s=>s.orientation==="horizontal");
+run("use virdis", s=>s.palette==="cmap:viridis");
+run("make Salinee red", s=>G(s,"Saline").color==="#ff0000");
+run("title Gridlnes are fun", s=>s.title==="Gridlnes are fun");
+run("ticks insde", s=>s.tick_dir==="in");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

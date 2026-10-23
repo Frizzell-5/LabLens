@@ -108,7 +108,7 @@ function armConfirm(btn, question, action) {
 // Defaults
 // ============================================================================
 const DEFAULT_SETTINGS = {
-  compare: { dataset: "", layout: "wide", columns: [], value_col: "", group_col: "", group_order: "", y_name: "", paired: false, test: "auto", equal_var: false, posthoc: "all" },
+  compare: { dataset: "", layout: "wide", columns: [], value_col: "", group_col: "", group_order: "", y_name: "", normalize: "none", paired: false, test: "auto", equal_var: false, posthoc: "all" },
   timecourse: {
     time_col: "", time_unit: "seconds", value_col: "", valid_min: "", valid_max: "", filter_col: "", filter_min: "", filter_max: "",
     bin: 30, baseline_start: -5, baseline_end: 0, window_start: -10, window_end: 30, event_label: "Injection", norm: "pct",
@@ -123,6 +123,7 @@ const DEFAULT_SETTINGS = {
 const LOOK_DEFAULTS = {
   width: 4, height: 3.4, theme: "light", bg_color: "", axes_color: "", ink_color: "",
   font: "sans", font_size: 10, title_size: "", label_size: "", tick_size: "", title_bold: true, label_bold: false, title_align: "center",
+  title_italic: false, label_italic: false, tick_italic: false, legend_size: "",
   palette: "serpentine", palette_reverse: false,
   bar_width: 0.62, jitter: 0.12, fill: "light", fill_alpha: 0.25, edge_width: "",
   show_points: true, point_shape: "o", marker_size: 5, point_alpha: 0.85, point_edge: "auto", point_edge_width: 0.5,
@@ -136,7 +137,7 @@ const LOOK_DEFAULTS = {
 const DEFAULT_STYLE = {
   ...LOOK_DEFAULTS,
   plot_kind: "bar", orientation: "vertical", custom_colors: "", groups: {}, title: "", xlabel: "", ylabel: "", legend_title: "",
-  ymin: "", ymax: "", xmin: "", xmax: "", logy: false, logx: false, ytick_step: "", xtick_step: "", y_decimals: "", xrot: 0,
+  ymin: "", ymax: "", xmin: "", xmax: "", logy: false, logx: false, ytick_step: "", xtick_step: "", y_nticks: "", x_nticks: "", y_decimals: "", xrot: 0,
   panel_label: "", ref_lines: "", endpoint_width: "", dpi: 300, transparent: false, custom_rc: "", custom_code: "",
 };
 
@@ -319,6 +320,7 @@ async function inspectNow(id) {
 let runTimer = null;
 let running = false;
 let rerun = false;
+const afterRun = []; // callbacks waiting for the next finished run (e.g. export after a command)
 
 function scheduleRun(delay = 320) {
   clearTimeout(runTimer);
@@ -353,7 +355,9 @@ async function runNow() {
   if (rerun) {
     rerun = false;
     runNow();
+    return;
   }
+  while (afterRun.length) afterRun.shift()();
 }
 
 // ============================================================================
@@ -858,6 +862,7 @@ const SETTINGS_SCHEMA = {
       s.layout === "long" && row(col("value_col", "Value column", c.numeric), col("group_col", "Group column", c.all)),
       txt("group_order", "Group order", { placeholder: "e.g. Control, Low, High", hint: "Optional. Groups you leave out keep their table order." }),
       txt("y_name", "Measurement name", { placeholder: "e.g. Tumor volume (mm³)", hint: "Becomes the value-axis label." }),
+      sel("normalize", "Express values as", [["none", "As entered"], ["pct_control", "% of the first group's mean"], ["fold_control", "Fold of the first group's mean"], ["delta_control", "Difference from the first group's mean"]], { hint: "The first group (see Group order) is treated as the control." }),
       sec("Statistics"),
       s.layout !== "long" && tog("paired", "Paired / repeated measures", "Each row is one subject measured in every group."),
       sel("test", "Test", TEST_OPTIONS),
@@ -985,6 +990,8 @@ function styleSchema() {
     row(num("title_size", "Title size", { placeholder: "auto" }), tog("title_bold", "Bold title")),
     row(txt("xlabel", "X-axis label", { placeholder: "automatic" }), txt("ylabel", "Y-axis label", { placeholder: "automatic" })),
     row(num("label_size", "Axis label size", { placeholder: "auto" }), tog("label_bold", "Bold axis labels")),
+    row(tog("title_italic", "Italic title"), tog("label_italic", "Italic axis labels")),
+    tog("tick_italic", "Italic group names", "For gene, species or strain names."),
     row(num("xrot", "X label angle (°)", { placeholder: "0" }), txt("panel_label", "Panel letter", { placeholder: "e.g. A" })),
     sec("Axes and ticks"),
     { type: "row", fields: [tog("spine_left", "Left"), tog("spine_bottom", "Bottom"), tog("spine_top", "Top"), tog("spine_right", "Right")] },
@@ -999,6 +1006,7 @@ function styleSchema() {
     a === "timecourse" && row(num("ymin", "Y min"), num("ymax", "Y max")),
     row(tog("logy", groupPlot ? "Log scale (values)" : "Log scale Y"), a === "correlation" && tog("logx", "Log scale X")),
     row(num("ytick_step", "Y tick spacing"), num("xtick_step", "X tick spacing")),
+    row(num("y_nticks", "About how many Y ticks"), num("x_nticks", "About how many X ticks")),
     num("y_decimals", "Decimal places on the value axis"),
     sec("Grid and reference lines"),
     seg("grid", "Gridlines", [["none", "None"], ["y", "Horizontal"], ["x", "Vertical"], ["both", "Both"]]),
@@ -1007,6 +1015,7 @@ function styleSchema() {
     lines && sec("Legend"),
     lines && sel("legend", "Position", [["best", "Best spot"], ["upper right", "Top right"], ["upper left", "Top left"], ["lower right", "Bottom right"], ["lower left", "Bottom left"], ["center right", "Middle right"], ["outside", "Outside, right"], ["outside top", "Above the plot"], ["none", "Hidden"]]),
     lines && row(num("legend_cols", "Columns", { placeholder: "1" }), tog("legend_frame", "Frame")),
+    lines && num("legend_size", "Legend text size (pt)", { placeholder: "auto" }),
     lines && txt("legend_title", "Legend title"),
     sec("Size and export"),
     row(num("width", "Width (in)", { hint: mm(s.width) + " mm" }), num("height", "Height (in)", { hint: mm(s.height) + " mm" })),
@@ -1317,8 +1326,17 @@ const COMMAND_HELP = [
   ["Text", ["title Day 21", "y axis label Volume (mm³)", "font size 12", "use Lato", "bold axis labels", "panel letter B"]],
   ["Axes", ["remove the top and right axes", "box around the plot", "floating axes", "y axis from 0 to 1000", "log scale", "ticks inside", "rotate the labels 45"]],
   ["Stats marks", ["show exact p values", "hide the stars", "show n under each group", "use SD", "no caps on error bars"]],
-  ["Size & more", ["6 by 4 inches", "89 mm wide", "make it bigger", "reference line at 100", "use the journal style", "undo"]],
+  ["Size & more", ["6 by 4 inches", "89 mm wide", "make it bigger", "landscape", "reference line at 100", "fewer ticks"]],
+  ["Overall look", ["make it look professional", "make it playful", "for my presentation", "make it look modern", "make everything bigger", "warmer colors"]],
+  ["Group order & shades", ["put Morphine first", "reverse the group order", "swap the colors", "make Saline lighter", "italicize the group names"]],
+  ["Actions", ["export as pdf", "copy the figure", "save my project", "undo", "redo"]],
 ];
+const ANALYSIS_HELP = {
+  timecourse: ["Time course", ["baseline from -2 to 0", "endpoint 25 to 30", "10 second bins", "percent of baseline", "use the nadir", "pair by subject", "rename the injection to Morphine"]],
+  compare: ["Statistics", ["percent of control", "paired", "use a nonparametric test", "compare everything to the control", "all pairwise comparisons"]],
+  correlation: ["Statistics", ["use spearman", "hide the fit line", "remove the confidence band"]],
+  dose: ["Curve fit", ["fix the bottom at 0", "fix top at 100", "call it IC50", "show every replicate"]],
+};
 
 function commandExamples() {
   const g = lastResult?.group_styles?.[0]?.label || "the first group";
@@ -1341,6 +1359,7 @@ function runCommand(text) {
   commandHistory.push(text);
   commandIndex = commandHistory.length;
   let undid = false;
+  const actions = [];
   const settings = state.settings[state.analysis];
   const before = JSON.stringify(settings);
   const res = interpretCommand(text, {
@@ -1362,16 +1381,35 @@ function runCommand(text) {
       Object.assign(state.style, clone(DEFAULT_STYLE), keep);
     },
     undo: () => { undid = true; undo(); },
+    redo: () => { undid = true; redo(); },
+    action: (name, arg) => actions.push([name, arg]),
   });
-  const other = res.changes.filter((c) => c !== "Undid the last change");
+  const doActions = () => {
+    for (const [name, arg] of actions) {
+      if (name === "export") (lastResult?.figures || []).forEach((_, i) => exportFigure(i, arg));
+      else if (name === "copy") copyFigure(0);
+      else if (name === "save") saveProject();
+      else if (name === "script") downloadScript();
+    }
+  };
+  const isAction = (c) => /^(Undid|Redid|Exporting|Copying|Saving|Downloading)/.test(c);
+  const other = res.changes.filter((c) => !isAction(c));
   if (other.length) {
     if (state.step === "style") renderStyle();
     if (JSON.stringify(settings) !== before && state.step === "settings") renderSettings();
+    if (actions.length) afterRun.push(doActions); // export the updated figure, not the old one
     changed({ delay: 10 });
+  } else if (actions.length) {
+    doActions();
   }
+  const phrases = [ANALYSIS_HELP[state.analysis], ...COMMAND_HELP].filter(Boolean).flatMap(([, list]) => list);
   const fb = $("#command-feedback");
   fb.innerHTML = res.changes.map((c) => `<span class="cmd-chip">✓ ${esc(c)}</span>`).join("")
-    + res.unknown.map((u) => `<span class="cmd-chip miss">Didn't understand “${esc(u)}”. See “What can I say?” or use the Style step.</span>`).join("");
+    + res.unknown.map((u) => {
+      const ideas = suggestCommands(u, phrases, 3);
+      return `<span class="cmd-chip miss">Didn't understand “${esc(u)}”.${ideas.length ? " Did you mean:" : " See “What can I say?” or use the Style step."}</span>`
+        + ideas.map((i) => `<button type="button" class="cmd-suggest" data-cmd="${esc(i)}">${esc(i)}</button>`).join("");
+    }).join("");
   if (res.changes.length && !res.unknown.length) $("#command-input").value = "";
   if (undid && !other.length) renderUndo();
 }
@@ -1394,8 +1432,8 @@ function bindCommandBar() {
       const help = $("#command-help");
       help.hidden = !help.hidden;
       e.target.setAttribute("aria-expanded", String(!help.hidden));
-      if (!help.hidden && !help.innerHTML) {
-        help.innerHTML = COMMAND_HELP.map(([title, list]) => `<div><b>${esc(title)}</b>${list.map((l) => `<span>${esc(l)}</span>`).join("")}</div>`).join("")
+      if (!help.hidden) {
+        help.innerHTML = [ANALYSIS_HELP[state.analysis], ...COMMAND_HELP].filter(Boolean).map(([title, list]) => `<div><b>${esc(title)}</b>${list.map((l) => `<span>${esc(l)}</span>`).join("")}</div>`).join("")
           + `<div><b>Tips</b><span style="font-family:inherit">Combine commands with “and” or commas. Every change can be undone with Undo or ⌘Z.</span></div>`;
       }
     }

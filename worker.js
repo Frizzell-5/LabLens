@@ -65,10 +65,18 @@ onmessage = async (event) => {
   try {
     await ready;
     if (cmd === "excel" && !excelReady) {
+      // Excel readers aren't part of the Pyodide distribution; install them from PyPI on first use.
       status("Loading Excel support");
-      await py.loadPackage(["openpyxl"]);
-      excelReady = true;
-      status("Ready");
+      try {
+        await py.loadPackage("micropip");
+        await py.pyimport("micropip").install(["openpyxl", "xlrd"]);
+        excelReady = true;
+      } catch (e) {
+        postMessage({ type: "result", id, out: { error: "Excel support couldn't load (are you offline?). Save the sheet as CSV and upload that instead." } });
+        return;
+      } finally {
+        status("Ready");
+      }
     }
     if (cmd === "run") {
       try {

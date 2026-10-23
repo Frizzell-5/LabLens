@@ -23,14 +23,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib import font_manager  # noqa: E402
 from matplotlib.colors import to_rgba, to_rgb, to_hex  # noqa: E402
-from matplotlib.ticker import FuncFormatter, MultipleLocator, FormatStrFormatter, LogLocator, NullFormatter  # noqa: E402
+from matplotlib.ticker import FuncFormatter, MultipleLocator, FormatStrFormatter, LogLocator, NullFormatter, MaxNLocator  # noqa: E402
 import scipy  # noqa: E402
 from scipy import stats  # noqa: E402
 from scipy.optimize import curve_fit  # noqa: E402
 
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
-ENGINE_VERSION = "0.3.0"
+ENGINE_VERSION = "0.4.0"
 
 
 class UserError(Exception):
@@ -44,7 +44,8 @@ class UserError(Exception):
 _CLOCK = re.compile(r"^-?\d+:\d{1,2}(:\d{1,2})?(\.\d+)?$")
 _THOUSANDS = re.compile(r"^-?\d{1,3}(,\d{3})+(\.\d+)?$")
 _DEC_COMMA = re.compile(r"^-?\d*,\d+$")
-_MISSING = {"", "nan", "na", "n/a", "-", "--", "null", "none", "#n/a", "#value!", "#div/0!", "#num!"}
+_WITH_UNIT = re.compile(r"^(-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*(?:[a-zA-Zµμ°/%·^²³]+[a-zA-Z0-9µμ°/%·^²³.\-]*)$")
+_MISSING = {"", "nan", "na", "n/a", "-", "--", "null", "none", "#n/a", "#value!", "#div/0!", "#num!", "*", "**", "-.-", "—", "–", "?", "inf", "-inf", "missing", "excluded"}
 
 
 def _num(cell, comma_decimal=False):
@@ -63,7 +64,13 @@ def _num(cell, comma_decimal=False):
     try:
         v = float(s)
     except ValueError:
-        return None
+        m = _WITH_UNIT.match(s)  # "48.2 mL/min", "12 BPM", "3.5mV"
+        if not m:
+            return None
+        try:
+            v = float(m.group(1))
+        except ValueError:
+            return None
     return v if math.isfinite(v) else None
 
 
@@ -84,7 +91,23 @@ def _is_value(cell, comma_decimal):
     return _num(cell, comma_decimal) is not None or _clock(cell) is not None
 
 
+_TABLE_CACHE = {}
+
+
 def read_table(text):
+    """Cached wrapper: re-running an analysis doesn't re-parse unchanged tables."""
+    key = (len(text or ""), hash(text or ""))
+    hit = _TABLE_CACHE.get(key)
+    if hit is not None and hit[0] == text:
+        return hit[1], hit[2]
+    df, info = _read_table(text)
+    if len(_TABLE_CACHE) > 64:
+        _TABLE_CACHE.clear()
+    _TABLE_CACHE[key] = (text, df, info)
+    return df, info
+
+
+def _read_table(text):
     """Parse pasted or exported text (LabChart Data Pad, Excel, Prism, CSV) into a DataFrame.
 
     Returns (df, info). Numeric and clock-time columns become floats (clock times in seconds);
@@ -320,7 +343,8 @@ FONTS = {
 LOOK_DEFAULTS = {
     "width": 4.0, "height": 3.4, "theme": "light", "bg_color": "", "axes_color": "", "ink_color": "",
     "font": "sans", "font_size": 10, "title_size": "", "label_size": "", "tick_size": "",
-    "title_bold": True, "label_bold": False, "title_align": "center",
+    "title_bold": True, "label_bold": False, "title_align": "center", "title_italic": False, "label_italic": False,
+    "tick_italic": False, "legend_size": "",
     "palette": "serpentine", "palette_reverse": False,
     "plot_kind": "bar", "orientation": "vertical", "bar_width": 0.62, "jitter": 0.12,
     "fill": "light", "fill_alpha": 0.25, "edge_width": "",
@@ -337,7 +361,7 @@ LOOK_DEFAULTS = {
 STYLE_DEFAULTS = dict(LOOK_DEFAULTS, **{
     "custom_colors": "", "groups": {}, "title": "", "xlabel": "", "ylabel": "", "legend_title": "",
     "ymin": "", "ymax": "", "xmin": "", "xmax": "", "logy": False, "logx": False,
-    "ytick_step": "", "xtick_step": "", "y_decimals": "", "xrot": 0, "panel_label": "", "ref_lines": "",
+    "ytick_step": "", "xtick_step": "", "y_nticks": "", "x_nticks": "", "y_decimals": "", "xrot": 0, "panel_label": "", "ref_lines": "",
     "endpoint_width": "", "dpi": 300, "transparent": False, "custom_rc": "", "custom_code": "",
 })
 
@@ -350,7 +374,7 @@ NUMERIC = {  # key: (default, low, high); default None means "derived from anoth
     "cap_size": (None, 0, 30), "error_width": (None, 0.1, 12), "sig_size": (None, 4, 72),
     "offset_axes": (0, 0, 60), "tick_length": (3.5, 0, 25), "xrot": (0, -90, 90), "legend_cols": (1, 1, 12),
     "grid_alpha": (0.15, 0, 1), "band_alpha": (0.18, 0, 1), "trace_alpha": (0.35, 0, 1), "dpi": (300, 50, 2400),
-    "endpoint_width": (None, 1.0, 30),
+    "endpoint_width": (None, 1.0, 30), "legend_size": (None, 4, 72), "y_nticks": (None, 2, 30), "x_nticks": (None, 2, 30),
 }
 
 
@@ -484,7 +508,7 @@ def _rc(s):
         "axes.labelweight": "bold" if s.get("label_bold") else "normal",
         "xtick.labelsize": s["tick_size"],
         "ytick.labelsize": s["tick_size"],
-        "legend.fontsize": fs * 0.85,
+        "legend.fontsize": s["legend_size"] or fs * 0.85,
         "legend.title_fontsize": fs * 0.9,
         "axes.linewidth": aw,
         "xtick.major.width": aw, "ytick.major.width": aw,
@@ -604,6 +628,11 @@ def _finish(ax, s, xlabel="", ylabel="", title="", legend=False, title_pad=None)
                 axis.set_major_locator(MultipleLocator(step))
         except (TypeError, ValueError):
             pass
+    for key, axis, numeric in (("y_nticks", ax.yaxis, cat != "y"), ("x_nticks", ax.xaxis, cat != "x")):
+        n_ticks = s.get(key)
+        step_set = str(s.get("ytick_step" if key == "y_nticks" else "xtick_step") or "").strip() != ""
+        if n_ticks and numeric and not step_set and axis.get_scale() == "linear":
+            axis.set_major_locator(MaxNLocator(nbins=max(1, int(n_ticks) - 1), steps=[1, 2, 2.5, 5, 10]))
     try:
         dec = int(float(s["y_decimals"]))
         vaxis = ax.xaxis if value_axis == "x" else ax.yaxis
@@ -622,6 +651,14 @@ def _finish(ax, s, xlabel="", ylabel="", title="", legend=False, title_pad=None)
             lab.set_rotation(s["xrot"])
             lab.set_ha("right" if 0 < s["xrot"] < 90 else ("left" if -90 < s["xrot"] < 0 else "center"))
             lab.set_rotation_mode("anchor")
+    if s.get("title_italic"):
+        ax.title.set_fontstyle("italic")
+    if s.get("label_italic"):
+        ax.xaxis.label.set_fontstyle("italic")
+        ax.yaxis.label.set_fontstyle("italic")
+    if s.get("tick_italic") and cat:  # group names on the category axis, not the numbers
+        for lab in (ax.get_xticklabels() if cat == "x" else ax.get_yticklabels()):
+            lab.set_fontstyle("italic")
     if legend and s["legend"] != "none":
         handles, labels = ax.get_legend_handles_labels()
         if handles:
@@ -633,6 +670,9 @@ def _finish(ax, s, xlabel="", ylabel="", title="", legend=False, title_pad=None)
                 ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), **kw)
             else:
                 ax.legend(loc=s["legend"], **kw)
+            if s.get("tick_italic") and ax.get_legend():
+                for t in ax.get_legend().get_texts():
+                    t.set_fontstyle("italic")
 
 
 def _parse_ref_lines(text):
@@ -1276,6 +1316,25 @@ def analysis_compare(datasets, S, s):
         ylabel = S.get("y_name") or ""
     if not names:
         raise UserError("No groups found.")
+    norm_note = ""
+    notes = []
+    normalize = S.get("normalize", "none")
+    if normalize in ("pct_control", "fold_control", "delta_control") and len(names) >= 1:
+        ctrl = values[0][np.isfinite(values[0])]
+        ref = float(np.mean(ctrl)) if len(ctrl) else np.nan
+        if not np.isfinite(ref) or (ref == 0 and normalize != "delta_control"):
+            notes.append("The first group's mean is %s, so values couldn't be expressed relative to it." % ("0" if ref == 0 else "missing"))
+        else:
+            if normalize == "pct_control":
+                values = [v / ref * 100.0 for v in values]
+                suffix, norm_note = "%% of %s" % names[0], "Values were expressed as a percentage of the mean of the %s group." % names[0]
+            elif normalize == "fold_control":
+                values = [v / ref for v in values]
+                suffix, norm_note = "fold of %s" % names[0], "Values were expressed as fold of the mean of the %s group." % names[0]
+            else:
+                values = [v - ref for v in values]
+                suffix, norm_note = "difference from %s" % names[0], "Values were expressed as the difference from the mean of the %s group." % names[0]
+            ylabel = "%s (%s)" % (ylabel, suffix) if ylabel else suffix[0].upper() + suffix[1:]
     res = compare_stats(names, values, paired=paired, mode=S.get("test", "auto"),
                         posthoc=S.get("posthoc", "all"), equal_var=S.get("equal_var", False))
     fig = _group_figure(names, values, s, res, paired, ylabel)
@@ -1286,8 +1345,8 @@ def analysis_compare(datasets, S, s):
     tables = [describe(names, values, shown)] + stats_tables(shown, res)
     return {
         "figures": [{"id": "groups", "title": "Group comparison", "fig": fig, "style": s}],
-        "tables": tables, "summary": summary, "notes": res["notes"],
-        "methods": _methods(s, res), "groups": names,
+        "tables": tables, "summary": summary, "notes": notes + res["notes"],
+        "methods": _methods(s, res, norm_note), "groups": names,
     }
 
 
@@ -1370,6 +1429,16 @@ def analysis_timecourse(datasets, S, s):
         if info["kinds"][tcol] != "time":
             t = t * mult
         v = df[vcol].to_numpy(float)
+        # A new LabChart block restarts time at 0. Keep the first block and say so.
+        fin_idx = np.where(np.isfinite(t))[0]
+        if len(fin_idx) > 1:
+            back = np.where(np.diff(t[fin_idx]) < -1e-6)[0]
+            if len(back):
+                cut = fin_idx[back[0] + 1]
+                notes.append('"%s": time jumps back from %s to %s at row %d (a new recording block?). Rows from there on were left out.'
+                             % (name, _fmt_clock(t[fin_idx[back[0]]]), _fmt_clock(t[cut]), cut + 1))
+                t, v = t[:cut], v[:cut]
+                df = df.iloc[:cut]
         ok = np.isfinite(t) & np.isfinite(v)
         if vmin is not None:
             ok &= v >= vmin
