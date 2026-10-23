@@ -4,69 +4,636 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LabLens</title>
-<meta name="description" content="Analyze lab data and make publication-quality figures without writing code. Python runs in your browser; your data never leaves your computer.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="LabLens turns raw lab data into statistics and publication-quality figures without code. Python runs in your browser, so your data never leaves your computer.">
+<meta property="og:title" content="LabLens">
+<meta property="og:description" content="Statistics and publication-quality figures from raw lab data. No code, nothing uploaded.">
+<meta property="og:image" content="https://frizzell-5.github.io/LabLens/docs/screenshot.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='14' cy='14' r='9' fill='none' stroke='%232456C7' stroke-width='3'/%3E%3Cpath d='M21 21l7 7' stroke='%232456C7' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M9 17l3-4 3 2 3-5' fill='none' stroke='%232456C7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='14' cy='14' r='9' fill='none' stroke='%232456C7' stroke-width='3'/%3E%3Cpath d='M21 21l7 7' stroke='%232456C7' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M9 17l3-4 3 2 3-5' fill='none' stroke='%232456C7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a journal "figure plate". Every image is a numbered figure with a caption,
+   the way results appear in a paper; sections read like a methods section. */
+:root {
+  --bg: #F3F5F2;
+  --paper: #FFFFFF;
+  --ink: #132120;
+  --muted: #56655F;
+  --faint: #8A9893;
+  --line: #D8DFDA;
+  --accent: #2456C7;
+  --accent-soft: #E2E9FB;
+  --accent-ink: #FFFFFF;
+  --signal: #D1495B;
+  --dot: rgba(19, 33, 32, 0.075);
+  --shadow: 0 1px 2px rgba(19,33,32,.06), 0 12px 40px rgba(19,33,32,.08);
+  --display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --wrap: 1160px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1311; --paper: #141C1A; --ink: #E3EAE7; --muted: #9AAAA4; --faint: #6E7E79; --line: #24302D;
+    --accent: #84A7FF; --accent-soft: #1A2846; --accent-ink: #0A1120; --signal: #FF8593; --dot: rgba(227,234,231,.06);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1311; --paper: #141C1A; --ink: #E3EAE7; --muted: #9AAAA4; --faint: #6E7E79; --line: #24302D;
+  --accent: #84A7FF; --accent-soft: #1A2846; --accent-ink: #0A1120; --signal: #FF8593; --dot: rgba(227,234,231,.06);
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.35); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+p { margin: 0; }
+code, kbd { font-family: var(--mono); font-size: .88em; background: var(--accent-soft); color: var(--ink); padding: .1em .4em; border-radius: 4px; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+
+/* ---------- Header ---------- */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+.site-head { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.site-head .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+.logo { display: flex; align-items: center; gap: 8px; color: var(--accent); text-decoration: none; }
+.logo svg { width: 24px; height: 24px; }
+.logo span { font: 700 18px var(--display); color: var(--ink); letter-spacing: -.01em; }
+.nav { display: flex; gap: 22px; margin-left: auto; align-items: center; }
+.nav a { color: var(--muted); text-decoration: none; font-size: 14.5px; font-weight: 500; }
+.nav a:hover { color: var(--ink); }
+.nav a.btn-primary, .nav a.btn-primary:hover { color: var(--accent-ink); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 20px; border-radius: 8px; font: 600 15px var(--body); text-decoration: none; border: 1.5px solid transparent; cursor: pointer; white-space: nowrap; transition: transform .15s, box-shadow .15s; }
+.btn svg { width: 18px; height: 18px; flex: none; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 35%, transparent); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent); }
+.btn-line { border-color: var(--line); color: var(--ink); background: var(--paper); }
+.btn-line:hover { border-color: var(--accent); color: var(--accent); }
+.btn-small { padding: 7px 14px; font-size: 14px; }
+@media (max-width: 760px) { .nav a:not(.btn) { display: none; } }
+
+/* ---------- Hero ---------- */
+.hero { background-image: radial-gradient(var(--dot) 1.2px, transparent 1.2px); background-size: 18px 18px; border-bottom: 1px solid var(--line); }
+.hero .wrap { padding-block: 72px 0; display: grid; gap: 28px; }
+.eyebrow { font: 500 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.eyebrow i { width: 4px; height: 4px; border-radius: 50%; background: var(--faint); display: inline-block; }
+.hero h1 { font-size: clamp(40px, 6.4vw, 78px); line-height: 1.0; font-weight: 800; max-width: 15ch; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); max-width: 60ch; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.cta-note { font: 13px var(--mono); color: var(--faint); }
+.plate { margin-top: 28px; background: var(--paper); border: 1px solid var(--line); border-bottom: 0; border-radius: 14px 14px 0 0; box-shadow: var(--shadow); overflow: hidden; }
+.plate-bar { display: flex; align-items: center; gap: 7px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.plate-bar i { width: 11px; height: 11px; border-radius: 50%; background: var(--line); display: block; }
+.plate-bar span { margin-left: 10px; font: 12px var(--mono); color: var(--faint); }
+
+/* ---------- Figure captions (journal style) ---------- */
+figure { margin: 0; }
+figcaption { font-size: 14px; color: var(--muted); padding-top: 10px; line-height: 1.5; }
+figcaption b { color: var(--ink); font-weight: 700; }
+.figlabel { font-weight: 700; color: var(--ink); }
+
+/* ---------- Stats strip ---------- */
+.strip { border-bottom: 1px solid var(--line); background: var(--paper); }
+.strip .wrap { display: grid; grid-template-columns: repeat(4, 1fr); }
+.stat { padding: 26px 20px 24px; border-left: 1px solid var(--line); }
+.stat:first-child { border-left: 0; padding-left: 0; }
+.stat b { display: block; font: 800 38px/1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 14px; color: var(--muted); }
+@media (max-width: 760px) { .strip .wrap { grid-template-columns: 1fr 1fr; } .stat:nth-child(3) { border-left: 0; padding-left: 0; } .stat { border-top: 1px solid var(--line); } .stat:nth-child(-n+2) { border-top: 0; } }
+
+/* ---------- Sections ---------- */
+section.block { padding-block: 96px; border-bottom: 1px solid var(--line); }
+.section-head { display: grid; gap: 14px; margin-bottom: 44px; max-width: 760px; }
+.kicker { font: 500 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.section-head h2 { font-size: clamp(30px, 4vw, 46px); line-height: 1.08; font-weight: 800; }
+.section-head p { color: var(--muted); font-size: 17.5px; max-width: 62ch; }
+
+/* steps */
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; counter-reset: step; border-top: 2px solid var(--ink); }
+.steps li { list-style: none; padding: 20px 22px 0 0; }
+.steps li + li { padding-left: 22px; border-left: 1px solid var(--line); }
+.steps .n { font: 500 13px var(--mono); color: var(--accent); }
+.steps h3 { font-size: 20px; margin: 6px 0 6px; }
+.steps p { color: var(--muted); font-size: 15px; }
+.steps ol, ol.steps { margin: 0; padding: 0; }
+@media (max-width: 860px) { .steps { grid-template-columns: 1fr 1fr; row-gap: 28px; } .steps li:nth-child(3) { border-left: 0; padding-left: 0; } }
+@media (max-width: 520px) { .steps { grid-template-columns: 1fr; } .steps li + li { border-left: 0; padding-left: 0; } }
+
+/* gallery */
+.gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 22px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.card .imgs { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: end; }
+.card .imgs.two { grid-template-columns: 1.55fr 1fr; }
+.card h3 { font-size: 22px; }
+.card p { color: var(--muted); font-size: 15px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tags span { font: 12px var(--mono); border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px; color: var(--muted); }
+@media (max-width: 860px) { .gallery { grid-template-columns: 1fr; } }
+
+/* style showcase */
+.looks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.look { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 14px 12px; min-width: 0; }
+.look img { border-radius: 6px; }
+.look figcaption { display: flex; justify-content: space-between; gap: 10px; }
+.look figcaption span { font: 12px var(--mono); color: var(--faint); text-align: right; }
+.freedom { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 32px; margin-top: 56px; padding-top: 36px; border-top: 2px solid var(--ink); }
+.freedom h3 { font-size: 18px; margin-bottom: 6px; }
+.freedom p { color: var(--muted); font-size: 15px; }
+@media (max-width: 860px) { .freedom { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .freedom { grid-template-columns: 1fr; } }
+@media (max-width: 860px) { .looks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .looks { grid-template-columns: 1fr; } }
+
+/* features */
+.features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); }
+.feature { padding: 26px 26px 28px 0; border-bottom: 1px solid var(--line); }
+.feature:not(:nth-child(3n+1)) { padding-left: 26px; border-left: 1px solid var(--line); }
+.feature svg { width: 26px; height: 26px; color: var(--accent); margin-bottom: 12px; }
+.feature h3 { font-size: 18.5px; margin-bottom: 6px; }
+.feature p { color: var(--muted); font-size: 15px; }
+@media (max-width: 860px) { .features { grid-template-columns: 1fr; } .feature:not(:nth-child(3n+1)) { padding-left: 0; border-left: 0; } }
+
+/* download */
+.download { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; }
+.dl-card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 30px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.dl-card.featured { border: 2px solid var(--accent); }
+.dl-card h3 { font-size: 24px; }
+.dl-card p { color: var(--muted); }
+.dl-card ol { margin: 0; padding-left: 20px; color: var(--muted); display: grid; gap: 8px; font-size: 15px; }
+.os { display: grid; gap: 4px; }
+.os b { font-size: 14.5px; }
+.pill { display: inline-block; font: 600 11.5px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 3px 9px; border-radius: 99px; justify-self: start; }
+@media (max-width: 860px) { .download { grid-template-columns: 1fr; } }
+
+/* guide */
+.guide { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+.toc { position: sticky; top: 90px; display: grid; gap: 2px; border-left: 2px solid var(--line); }
+.toc a { color: var(--muted); text-decoration: none; font-size: 14.5px; padding: 5px 0 5px 14px; margin-left: -2px; border-left: 2px solid transparent; }
+.toc a:hover, .toc a.on { color: var(--accent); border-left-color: var(--accent); }
+.doc { display: grid; gap: 48px; max-width: 74ch; }
+.doc article { display: grid; gap: 14px; }
+.doc h3 { font-size: 26px; }
+.doc h4 { font: 700 16px var(--display); margin: 8px 0 0; }
+.doc p, .doc li { color: var(--muted); }
+.doc ul, .doc ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.doc strong { color: var(--ink); }
+.sample { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font: 13px/1.6 var(--mono); overflow-x: auto; white-space: pre; color: var(--ink); margin: 0; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.tbl table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+.tbl th, .tbl td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 600; }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.tbl td { color: var(--muted); }
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; color: var(--ink); font-size: 15px; }
+@media (max-width: 860px) { .guide { grid-template-columns: 1fr; } .toc { display: none; } }
+
+/* faq */
+.faq { display: grid; gap: 0; border-top: 1px solid var(--line); max-width: 860px; }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary { cursor: pointer; list-style: none; padding: 20px 40px 20px 0; font: 600 18px var(--display); position: relative; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; position: absolute; right: 4px; top: 16px; font: 400 26px var(--display); color: var(--accent); transition: transform .2s; }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { color: var(--muted); padding: 0 40px 22px 0; max-width: 70ch; }
+
+/* closing + footer */
+.closing { padding-block: 96px; text-align: left; background-image: radial-gradient(var(--dot) 1.2px, transparent 1.2px); background-size: 18px 18px; }
+.closing .wrap { display: grid; gap: 22px; }
+.closing h2 { font-size: clamp(32px, 4.6vw, 56px); font-weight: 800; line-height: 1.04; max-width: 18ch; }
+footer { border-top: 1px solid var(--line); background: var(--paper); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; padding-block: 26px calc(26px + env(safe-area-inset-bottom, 0px)); font-size: 14px; color: var(--muted); }
+footer a { color: var(--muted); }
+footer .sp { margin-left: auto; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise { animation: rise .7s cubic-bezier(.2,.7,.2,1) both; }
+  .rise.d1 { animation-delay: .06s; } .rise.d2 { animation-delay: .12s; } .rise.d3 { animation-delay: .18s; } .rise.d4 { animation-delay: .26s; }
+  @keyframes rise { from { transform: translateY(14px); } to { transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+</style>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M21 21l7 7" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M9 17l3-4 3 2 3-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span class="brand-name">LabLens</span>
-  </div>
-  <input id="project-name" class="project-name" type="text" aria-label="Project name" spellcheck="false">
-  <span id="example-badge" class="badge badge-example" hidden>Example data</span>
-  <div class="topbar-actions">
-    <span id="engine-status" class="status status-loading" role="status"><span class="dot"></span><span class="status-text">Starting Python</span></span>
-    <button id="btn-new" class="btn btn-ghost" type="button">New</button>
-    <button id="btn-open" class="btn btn-ghost" type="button">Open</button>
-    <button id="btn-save" class="btn btn-ghost" type="button" title="Save project (⌘S)">Save</button>
-    <input id="open-file" type="file" accept=".json,.lablens" hidden>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="LabLens home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M21 21l7 7" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M9 17l3-4 3 2 3-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>LabLens</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#analyses">Analyses</a>
+      <a href="#styles">Figures</a>
+      <a href="#download">Download</a>
+      <a href="#guide">Guide</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/Frizzell-5/LabLens">GitHub</a>
+      <a class="btn btn-primary btn-small" href="app.html">Open LabLens</a>
+    </nav>
   </div>
 </header>
 
-<main class="workbench">
-  <aside class="controls" aria-label="Analysis setup">
-    <nav class="steps" role="tablist">
-      <button class="step" role="tab" data-step="analysis" id="tab-analysis"><span class="step-num">1</span>Analysis</button>
-      <button class="step" role="tab" data-step="data" id="tab-data"><span class="step-num">2</span>Data</button>
-      <button class="step" role="tab" data-step="settings" id="tab-settings"><span class="step-num">3</span>Settings</button>
-      <button class="step" role="tab" data-step="style" id="tab-style"><span class="step-num">4</span>Style</button>
-    </nav>
-    <div class="panel" id="panel-analysis" role="tabpanel"></div>
-    <div class="panel" id="panel-data" role="tabpanel" hidden></div>
-    <div class="panel" id="panel-settings" role="tabpanel" hidden></div>
-    <div class="panel" id="panel-style" role="tabpanel" hidden></div>
-  </aside>
+<main id="top">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="eyebrow rise"><span>v0.2</span><i></i><span>Free</span><i></i><span>Runs in your browser</span></div>
+      <h1 class="rise d1">Raw lab data in. <em>Publication figures</em> out.</h1>
+      <p class="lede rise d2">LabLens runs the statistics and draws the figures for you, using the same Python tools behind countless published studies. You choose everything from plain menus and never write a line of code. Your data stays on your computer.</p>
+      <div class="cta rise d3">
+        <a class="btn btn-primary" href="app.html">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6 4.5v11l9-5.5-9-5.5z"/></svg>Open LabLens</a>
+        <a class="btn btn-line" href="https://github.com/Frizzell-5/LabLens/releases/latest/download/LabLens.zip">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10m0 0l-4-4m4 4l4-4M4 16h12"/></svg>Download for Mac &amp; Windows</a>
+        <span class="cta-note">No sign-up · No install · Try the built-in examples</span>
+      </div>
+      <figure class="plate rise d4">
+        <div class="plate-bar" aria-hidden="true"><i></i><i></i><i></i><span>LabLens · time course around an injection</span></div>
+        <img src="docs/screenshot.png" width="2880" height="1720" alt="LabLens showing ventilation recordings from saline and morphine sessions aligned to the injection, with a time-course plot, an endpoint bar chart, a paired t-test result and a sessions table.">
+      </figure>
+    </div>
+  </section>
 
-  <section class="stage" aria-label="Results">
-    <div id="loading" class="loading">
-      <div class="loading-card">
-        <div class="spinner" aria-hidden="true"></div>
-        <h2>Getting the Python engine ready</h2>
-        <p id="loading-text">Starting Python</p>
-        <p class="fine">The first visit downloads Python with NumPy, SciPy, pandas and matplotlib (about 30&nbsp;MB). Your browser keeps it, so later visits start faster. Everything runs on your computer; your data is never uploaded.</p>
+  <!-- Facts -->
+  <div class="strip">
+    <div class="wrap">
+      <div class="stat"><b>10</b><span>plot types, each fully adjustable</span></div>
+      <div class="stat"><b>16</b><span>statistical methods</span></div>
+      <div class="stat"><b>0</b><span>lines of code to write</span></div>
+      <div class="stat"><b>0&nbsp;KB</b><span>of your data uploaded</span></div>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <section class="block" id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">How it works</span>
+        <h2>Four steps from spreadsheet to figure</h2>
+        <p>The figure redraws every time you change a setting, so you can see what each choice does.</p>
+      </div>
+      <ol class="steps">
+        <li><span class="n">01</span><h3>Pick an analysis</h3><p>Compare groups, follow a recording over time, test a correlation or fit a dose-response curve.</p></li>
+        <li><span class="n">02</span><h3>Add your data</h3><p>Paste straight from Excel, Prism or a LabChart Data Pad, or drop in CSV and Excel files.</p></li>
+        <li><span class="n">03</span><h3>Set the analysis</h3><p>Baselines, exclusions, normalization, tests and comparisons, each one a plain setting.</p></li>
+        <li><span class="n">04</span><h3>Style and export</h3><p>Choose a look, fine-tune colors and labels, then export figures, tables and methods text.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Analyses -->
+  <section class="block" id="analyses">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Analyses</span>
+        <h2>What LabLens can analyze</h2>
+        <p>Every figure on this page was made by LabLens from its built-in example data, which you can load with one click.</p>
+      </div>
+      <div class="gallery">
+        <figure class="card">
+          <div class="imgs two">
+            <img src="docs/img/g-timecourse.png" alt="Minute ventilation as percent of baseline over time for saline and morphine groups, with individual sessions and a shaded SEM band.">
+            <img src="docs/img/g-endpoint.png" alt="Endpoint bar chart comparing saline and morphine with paired lines between sessions from the same mouse.">
+          </div>
+          <h3>Time course around an event</h3>
+          <p>For recordings aligned to an injection, stimulus or treatment. LabLens bins the data, normalizes each session to its own baseline, removes the stretches you exclude, averages by group and tests an endpoint window.</p>
+          <div class="tags"><span>plethysmography</span><span>telemetry</span><span>% of baseline</span><span>net AUC</span><span>paired by subject</span></div>
+          <figcaption><span class="figlabel">Fig. 2 |</span> Minute ventilation after saline or morphine in the same four mice, 25 to 30 min endpoint, paired t-test.</figcaption>
+        </figure>
+        <figure class="card">
+          <div class="imgs"><img src="docs/img/g-compare.png" alt="Raincloud plot of tumor volume for vehicle and two drug doses, with significance brackets."></div>
+          <h3>Compare groups</h3>
+          <p>Checks normality first, then picks a t-test or ANOVA, or a rank-based test when the data aren't normal. Handles paired designs, runs post-hoc comparisons, reports effect sizes and draws the significance brackets.</p>
+          <div class="tags"><span>Welch t-test</span><span>ANOVA + Tukey</span><span>Dunnett</span><span>Kruskal-Wallis</span><span>Friedman</span></div>
+          <figcaption><span class="figlabel">Fig. 3 |</span> Tumor volume on day 21, one-way ANOVA with Tukey's test.</figcaption>
+        </figure>
+        <figure class="card">
+          <div class="imgs"><img src="docs/img/g-dose.png" alt="Three sigmoidal dose-response curves on a log concentration axis with IC50 markers."></div>
+          <h3>Dose-response curve</h3>
+          <p>Fits a four-parameter logistic model on a log axis and reports EC50 or IC50 with 95% confidence intervals, Hill slope and R². Several compounds or replicates can go in one table.</p>
+          <div class="tags"><span>4PL fit</span><span>EC50 / IC50</span><span>95% CI</span><span>fixed top or bottom</span></div>
+          <figcaption><span class="figlabel">Fig. 4 |</span> Kinase inhibition by three compounds; dashed lines mark each IC50.</figcaption>
+        </figure>
+        <figure class="card">
+          <div class="imgs"><img src="docs/img/g-correlation.png" alt="Scatter plot of body weight against fasting glucose for wild-type and knockout mice with fitted lines and confidence bands."></div>
+          <h3>Correlation &amp; regression</h3>
+          <p>Pearson or Spearman correlation with a least-squares fit and its 95% confidence band, for one group or split by genotype, treatment or any label column.</p>
+          <div class="tags"><span>Pearson</span><span>Spearman</span><span>linear fit</span><span>by group</span></div>
+          <figcaption><span class="figlabel">Fig. 5 |</span> Body weight against fasting glucose by genotype.</figcaption>
+        </figure>
       </div>
     </div>
-    <div id="error-box" class="callout callout-bad" hidden></div>
-    <div id="figures" class="figures"></div>
-    <div id="results" class="results" hidden>
-      <div id="summary" class="summary"></div>
-      <div class="result-tabs" role="tablist">
-        <button class="rtab" data-rtab="tables" type="button">Tables</button>
-        <button class="rtab" data-rtab="methods" type="button">Methods text</button>
-        <button class="rtab" data-rtab="python" type="button">Python script</button>
+  </section>
+
+  <!-- Style showcase -->
+  <section class="block" id="styles">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Figures</span>
+        <h2>Same data. Nine completely different figures.</h2>
+        <p>Python gives you full control over a figure, and so does LabLens, without the code. Every one of these was made from the same experiment by changing settings in the Style step: plot type, direction, fonts, colors, fills and patterns, markers, axis lines, ticks, gridlines, reference lines and more.</p>
       </div>
-      <div id="rpanel-tables" class="rpanel"></div>
-      <div id="rpanel-methods" class="rpanel" hidden></div>
-      <div id="rpanel-python" class="rpanel" hidden></div>
+      <div class="looks">
+        <figure class="look"><img src="docs/img/s-clean.png" alt="Bar chart with light fills, points and SEM error bars."><figcaption><b>Clean</b><span>bar · SEM</span></figcaption></figure>
+        <figure class="look"><img src="docs/img/s-minimal.png" alt="Strip plot with floating, trimmed axes in Fira Sans."><figcaption><b>Minimal</b><span>strip · floating axes</span></figcaption></figure>
+        <figure class="look"><img src="docs/img/s-editorial.png" alt="Scatter dot plot in Crimson Text with dotted gridlines and a left-aligned title."><figcaption><b>Editorial</b><span>serif · no y-axis line</span></figcaption></figure>
+        <figure class="look"><img src="docs/img/s-boxed.png" alt="Violin plots inside a full frame with inward and minor ticks."><figcaption><b>Boxed</b><span>violin · ticks in</span></figcaption></figure>
+        <figure class="look"><img src="docs/img/s-typewriter.png" alt="Grayscale box plots with hatch patterns in Courier Prime."><figcaption><b>Typewriter</b><span>box · hatch patterns</span></figcaption></figure>
+        <figure class="look"><img src="docs/img/s-neon.png" alt="Raincloud plot in neon colors on a black background."><figcaption><b>Neon</b><span>raincloud · dark</span></figcaption></figure>
+        <figure class="look"><img src="docs/img/s-sketch.png" alt="Lollipop chart in Comic Neue with star, square and diamond markers."><figcaption><b>Sketch</b><span>lollipop · custom markers</span></figcaption></figure>
+        <figure class="look"><img src="docs/img/s-horizontal.png" alt="Horizontal beeswarm plot in viridis colors with exact p-values."><figcaption><b>Horizontal</b><span>beeswarm · viridis · exact p</span></figcaption></figure>
+        <figure class="look"><img src="docs/img/s-solid.png" alt="Solid bars from the magma colormap with one-sided SD bars, a renamed group, a reference line and a panel letter."><figcaption><b>Custom</b><span>magma · reference line · panel B</span></figcaption></figure>
+      </div>
+      <figcaption style="margin-top:18px"><span class="figlabel">Fig. 6 |</span> One dataset, nine looks. Save any look as your own style, or share a style file so a whole lab uses the same house style. Export as PNG or TIFF up to 1200&nbsp;dpi, SVG with editable text, PDF, EPS or JPG, or copy straight into slides.</figcaption>
+
+      <div class="freedom">
+        <div><h3>Every group, your way</h3><p>Rename groups and give each its own color, marker, fill pattern and line style.</p></div>
+        <div><h3>Any color scheme</h3><p>Ten curated palettes, colorblind-safe options, every matplotlib colormap, or your own hex codes and backgrounds.</p></div>
+        <div><h3>Real typefaces</h3><p>Built-in sans, serif and mono, plus nine web fonts that come through exactly in PNG and PDF exports.</p></div>
+        <div><h3>Axes like a pro</h3><p>Choose which axis lines to draw, offset and trim them, set tick direction, length and spacing, minor ticks, log scales and limits.</p></div>
+        <div><h3>Annotate</h3><p>Reference lines with labels, panel letters, exact p-values or stars, n under each group, legends anywhere.</p></div>
+        <div><h3>Write Python if you want</h3><p>An optional box runs your own matplotlib code on the figure, and raw rcParams settings are one line each. No limits.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="block" id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Why LabLens</span>
+        <h2>Made for the way labs actually work</h2>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+          <h3>Your data stays private</h3>
+          <p>Python runs inside your browser. Nothing is sent to a server, which keeps unpublished and patient-adjacent data where it belongs.</p>
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>
+          <h3>Reproducible by design</h3>
+          <p>Download any analysis as a standalone Python script with your data and settings built in. A reviewer can rerun it and get the same numbers.</p>
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>
+          <h3>Methods text, written for you</h3>
+          <p>Each result comes with a methods paragraph naming the tests, corrections, normalization and software versions, ready to adapt for your paper.</p>
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
+          <h3>Reads real lab exports</h3>
+          <p>LabChart Data Pads, Excel ranges, Prism tables, CSV and TSV. It handles multi-row headers, clock times like 13:27, blank cells and decimal commas.</p>
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>
+          <h3>Sensible statistics by default</h3>
+          <p>Normality is checked before a test is chosen, Welch's correction is on, multiple comparisons are corrected, and small samples get a warning.</p>
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
+          <h3>Results you can reuse</h3>
+          <p>Statistics tables copy straight into Excel or Prism. Projects and styles save to files you can reopen, archive or share with your lab.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download -->
+  <section class="block" id="download">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Get LabLens</span>
+        <h2>Use it online, or keep a copy</h2>
+        <p>Both versions are identical. Either way, the analysis runs on your own computer.</p>
+      </div>
+      <div class="download">
+        <div class="dl-card featured">
+          <span class="pill">Recommended</span>
+          <h3>Open in your browser</h3>
+          <p>Nothing to install. Works in current versions of Chrome, Edge, Firefox, Safari and Brave on Mac, Windows and Linux.</p>
+          <p>The first visit downloads the Python engine (about 30&nbsp;MB) and takes 10 to 20 seconds. After that your browser keeps it, so LabLens opens faster.</p>
+          <a class="btn btn-primary" href="app.html" style="justify-self:start">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6 4.5v11l9-5.5-9-5.5z"/></svg>Open LabLens</a>
+        </div>
+        <div class="dl-card">
+          <h3>Download a copy</h3>
+          <p>Run LabLens from a folder on your computer. You need Python 3, which macOS includes; on Windows, install it free from <a href="https://www.python.org/downloads/">python.org</a>.</p>
+          <a class="btn btn-line" href="https://github.com/Frizzell-5/LabLens/releases/latest/download/LabLens.zip" style="justify-self:start">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10m0 0l-4-4m4 4l4-4M4 16h12"/></svg>Download LabLens.zip</a>
+          <div class="os"><b>Mac</b><span class="hint" style="color:var(--muted);font-size:15px">Unzip, then double-click <code>Start LabLens.command</code>. The first time, macOS may ask you to confirm: right-click the file, choose Open, then Open again.</span></div>
+          <div class="os"><b>Windows</b><span style="color:var(--muted);font-size:15px">Unzip, then double-click <code>Start LabLens (Windows).bat</code>.</span></div>
+          <div class="os"><b>Linux</b><span style="color:var(--muted);font-size:15px">Run <code>python3 -m http.server 8765</code> in the folder and open <code>localhost:8765/app.html</code>.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Guide -->
+  <section class="block" id="guide">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">User guide</span>
+        <h2>How to use LabLens</h2>
+        <p>Everything you need, from your first table to a finished figure.</p>
+      </div>
+      <div class="guide">
+        <nav class="toc" aria-label="Guide sections">
+          <a href="#g-start">Getting started</a>
+          <a href="#g-analysis">Choosing an analysis</a>
+          <a href="#g-data">Adding data</a>
+          <a href="#g-sessions">Time-course sessions</a>
+          <a href="#g-stats">How tests are chosen</a>
+          <a href="#g-style">Styling figures</a>
+          <a href="#g-export">Exporting results</a>
+          <a href="#g-projects">Saving projects</a>
+          <a href="#g-trouble">Troubleshooting</a>
+        </nav>
+        <div class="doc">
+          <article id="g-start">
+            <h3>Getting started</h3>
+            <p>Open LabLens and wait for the status at the top right to read <strong>Python ready</strong>. The app opens with an example loaded so you can see a finished analysis right away.</p>
+            <p>The left column has four numbered steps: <strong>Analysis</strong>, <strong>Data</strong>, <strong>Settings</strong> and <strong>Style</strong>. Work through them in order the first time; after that, jump to any step. The right side shows your figures, results and tables, and updates as you go.</p>
+            <div class="callout">Press <strong>Try example</strong> on any analysis to load sample data for it. It's the quickest way to learn what each setting does.</div>
+          </article>
+
+          <article id="g-analysis">
+            <h3>Choosing an analysis</h3>
+            <div class="tbl"><table>
+              <thead><tr><th>If your question is…</th><th>Use</th></tr></thead>
+              <tbody>
+                <tr><td>Do these groups differ?</td><td>Compare groups. Control vs treatment, several doses, genotypes, before vs after in the same subjects.</td></tr>
+                <tr><td>How did a signal change after an event?</td><td>Time course around an event. Breathing, heart rate, blood pressure, temperature, activity or any recording with a time column.</td></tr>
+                <tr><td>Does one measure track another?</td><td>Correlation &amp; regression.</td></tr>
+                <tr><td>How potent is this compound?</td><td>Dose-response curve.</td></tr>
+              </tbody>
+            </table></div>
+          </article>
+
+          <article id="g-data">
+            <h3>Adding data</h3>
+            <p>In the <strong>Data</strong> step, either press <strong>Paste a new table</strong> and paste into the box, press <kbd>⌘V</kbd> / <kbd>Ctrl+V</kbd> anywhere on the page, or drop files onto the dashed area. CSV, TSV, TXT and Excel files work. Each Excel sheet becomes its own table.</p>
+            <p>Put column names in the first row. LabLens shows how it read your table underneath, labelling each column as <em>number</em>, <em>time</em> or <em>text</em>, so you can check it before going on.</p>
+            <h4>Compare groups: two layouts</h4>
+            <p><strong>One column per group</strong> (like Prism's column tables):</p>
+<pre class="sample">Vehicle   Drug 10 mg/kg   Drug 30 mg/kg
+812       640             395
+905       702             410
+…</pre>
+            <p><strong>Values plus a group column</strong> (tidy format, common in exported data):</p>
+<pre class="sample">Mouse   Genotype   Weight (g)
+M1      WT         26.1
+M2      KO         29.4
+…</pre>
+            <h4>From LabChart</h4>
+            <p>In LabChart, select the rows of your Data Pad, copy them, and paste into LabLens. Time columns written as <code>8:40</code> or <code>0:08:40</code> are read as clock times automatically.</p>
+          </article>
+
+          <article id="g-sessions">
+            <h3>Time-course sessions</h3>
+            <p>For a time course, add <strong>one table per recording session</strong>. Every session needs the same column names. A sessions sheet then appears in the Data step, where you fill in four things for each one:</p>
+            <div class="tbl"><table>
+              <thead><tr><th>Field</th><th>What to enter</th><th>Example</th></tr></thead>
+              <tbody>
+                <tr><td>Group</td><td>The condition this session belongs to.</td><td><code>Morphine</code></td></tr>
+                <tr><td>Subject</td><td>The animal or participant. Used to pair sessions from the same subject.</td><td><code>M101</code></td></tr>
+                <tr><td>Event</td><td>When the injection or stimulus happened, in recording time. Use mm:ss, h:mm:ss or seconds.</td><td><code>13:27</code></td></tr>
+                <tr><td>Exclude</td><td>Time ranges to drop, such as a loose wire or movement. Separate several ranges with commas.</td><td><code>8:00-8:50, 21:10-22:00</code></td></tr>
+              </tbody>
+            </table></div>
+            <p>In <strong>Settings</strong>, choose the measurement, the bin size, the baseline window (for example −5 to 0 min), how to express values (% of baseline, change from baseline, fold, or raw) and the endpoint window that gets tested. A <strong>quality column</strong> filter lets you keep only rows that pass a check, for example a cycle count of at least 10.</p>
+            <p>Turn on <strong>Pair sessions by subject</strong> when the same animals were recorded under each condition, so LabLens uses a paired test.</p>
+          </article>
+
+          <article id="g-stats">
+            <h3>How tests are chosen</h3>
+            <p>With <strong>Test: Automatic</strong>, LabLens checks each group with the Shapiro-Wilk test. If every group looks normal it uses a parametric test, otherwise a rank-based one. You can force either choice.</p>
+            <div class="tbl"><table>
+              <thead><tr><th>Design</th><th>Parametric</th><th>Non-parametric</th></tr></thead>
+              <tbody>
+                <tr><td>2 groups</td><td>Welch's t-test (or Student's)</td><td>Mann-Whitney U</td></tr>
+                <tr><td>2 paired</td><td>Paired t-test</td><td>Wilcoxon signed-rank</td></tr>
+                <tr><td>3+ groups</td><td>One-way ANOVA + Tukey or Dunnett</td><td>Kruskal-Wallis + Holm-corrected Mann-Whitney</td></tr>
+                <tr><td>3+ paired</td><td>Repeated-measures ANOVA + Holm-corrected paired t</td><td>Friedman + Holm-corrected Wilcoxon</td></tr>
+              </tbody>
+            </table></div>
+            <p>Effect sizes (Hedges' g or Cohen's d<sub>z</sub>) are reported for two-group tests. Groups with fewer than five values trigger a reminder to show individual points and interpret p-values carefully.</p>
+          </article>
+
+          <article id="g-style">
+            <h3>Styling figures</h3>
+            <p>The Style step has everything you would otherwise do in matplotlib, in collapsible sections. Start with a <strong>quick style</strong> (Clean, Journal, Classic, Minimal, Editorial, Boxed, Typewriter, Soft, Poster, Slides, Neon or Sketch), then change anything:</p>
+            <ul>
+              <li><strong>Plot type:</strong> bar, scatter dot, mean ± error, box, violin, box + violin, raincloud, beeswarm, strip or lollipop, vertical or horizontal, with adjustable widths, point spread, fill and outline.</li>
+              <li><strong>Groups:</strong> rename any group and give it its own color, marker, hatch pattern and line style.</li>
+              <li><strong>Colors:</strong> palettes, any matplotlib colormap (reversible), your own hex codes, and separate figure, plot-area and text colors.</li>
+              <li><strong>Points, lines and error bars:</strong> marker shape, size, opacity and outline; line and axis widths; SEM, SD or 95% CI, two-sided or outward, with any cap width.</li>
+              <li><strong>Text:</strong> twelve fonts, separate sizes for title, axis labels and ticks, bold options, title position, label angle and a panel letter.</li>
+              <li><strong>Axes:</strong> choose each axis line, offset and trim them, tick direction, length and spacing, minor ticks, decimal places, limits and log scales.</li>
+              <li><strong>Grid, reference lines and legend:</strong> gridline direction and style; lines such as <code>y=100: Baseline; x=0</code>; legend position, columns, frame and title.</li>
+              <li><strong>Size:</strong> width and height in inches with millimetres shown. Journal style fits a single 89&nbsp;mm column.</li>
+            </ul>
+            <h4>Your own styles</h4>
+            <p>Name the current look and press <strong>Save style</strong> to reuse it in any project. <strong>Export style file</strong> saves it as a file that colleagues can import, so a lab can share one house style.</p>
+            <h4>Advanced: Python</h4>
+            <p>The last section accepts matplotlib settings (one <code>key: value</code> per line) and your own Python code, which runs on each figure with <code>fig</code>, <code>ax</code>, <code>plt</code>, <code>np</code> and <code>pd</code> ready. For example <code>ax.set_yticks([0, 50, 100])</code>. Errors appear as notes instead of breaking the figure, and your code is included in the downloaded Python script.</p>
+            <p>Changed your mind? <strong>Undo</strong> and <strong>Redo</strong> (<kbd>⌘Z</kbd> / <kbd>⇧⌘Z</kbd>) step back through every setting.</p>
+          </article>
+
+          <article id="g-export">
+            <h3>Exporting results</h3>
+            <ul>
+              <li><strong>Figures:</strong> PNG, SVG and PDF buttons on each figure, with TIFF, JPG and EPS under <em>More</em>. <em>Copy</em> puts the figure on your clipboard for slides and documents. Set resolution and a transparent background in Style.</li>
+              <li><strong>Tables:</strong> <em>Copy for Excel</em> puts a table on your clipboard to paste into Excel or Prism; <em>CSV</em> downloads it.</li>
+              <li><strong>Methods text:</strong> a paragraph describing what was done. Treat it as a draft and check it against your protocol.</li>
+              <li><strong>Python script:</strong> a single file that reproduces the analysis. Run it with <code>pip install numpy scipy pandas matplotlib</code> then <code>python script.py</code>.</li>
+            </ul>
+          </article>
+
+          <article id="g-projects">
+            <h3>Saving projects</h3>
+            <p>LabLens keeps your latest work in the browser automatically. To keep it for good, press <strong>Save</strong> (or <kbd>⌘S</kbd> / <kbd>Ctrl+S</kbd>) to download a <code>.lablens.json</code> file with your data and every setting. <strong>Open</strong> loads it again on any computer.</p>
+          </article>
+
+          <article id="g-trouble">
+            <h3>Troubleshooting</h3>
+            <ul>
+              <li><strong>Stuck on “Starting Python”.</strong> LabLens needs an internet connection to load the Python engine the first time. Check your connection and reload.</li>
+              <li><strong>A column reads as text.</strong> Usually a stray word or unit inside the numbers. Fix the cell, or delete the units row.</li>
+              <li><strong>“Couldn't read the time”.</strong> Write event and exclusion times as <code>13:27</code>, <code>0:13:27</code> or plain seconds like <code>807</code>.</li>
+              <li><strong>The downloaded copy shows a blank page.</strong> Start it with the launcher file rather than opening <code>app.html</code> directly, because browsers block the Python engine on pages opened from disk.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="block" id="faq">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">FAQ</span>
+        <h2>Questions</h2>
+      </div>
+      <div class="faq">
+        <details><summary>Is my data uploaded anywhere?</summary><p>No. LabLens downloads the Python engine to your browser, and all parsing, statistics and drawing happen on your computer. Your tables are never sent to a server. Your latest project is kept in your browser's local storage so it's there when you come back.</p></details>
+        <details><summary>Is it free?</summary><p>Yes. LabLens is free to use, online or downloaded.</p></details>
+        <details><summary>Can I trust the statistics?</summary><p>LabLens uses SciPy, the standard open scientific library behind much of published research, for every test, and it reports exactly which test was used. You can also download the Python script and check every step. As with any software, choose an analysis that matches your experimental design.</p></details>
+        <details><summary>Will my figures look like everyone else's?</summary><p>Only if you want them to. Every visual property is a setting, from fonts and axis lines to per-group markers and hatch patterns, and the optional Python box lets you do anything matplotlib can. Save your look as a style so your figures stay recognisably yours.</p></details>
+        <details><summary>Does it replace GraphPad Prism?</summary><p>For the analyses it covers, it can. LabLens focuses on things Prism handles less well: event-aligned recordings, fully customizable modern plot types such as raincloud and beeswarm plots, reproducible scripts and keeping data local. Prism still covers many more analyses today.</p></details>
+        <details><summary>How do I cite LabLens?</summary><p>The methods text names LabLens and the versions of Python, NumPy, SciPy, pandas and matplotlib used. Cite the software by name and link to <a href="https://github.com/Frizzell-5/LabLens">github.com/Frizzell-5/LabLens</a>.</p></details>
+        <details><summary>Can I suggest a feature or report a bug?</summary><p>Yes. Open an issue on <a href="https://github.com/Frizzell-5/LabLens/issues">GitHub</a>. Multi-panel figures, survival curves, two-way ANOVA and direct LabChart file import are already on the roadmap.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing">
+    <div class="wrap">
+      <h2>Your next figure is a paste away.</h2>
+      <div class="cta">
+        <a class="btn btn-primary" href="app.html"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6 4.5v11l9-5.5-9-5.5z"/></svg>Open LabLens</a>
+        <a class="btn btn-line" href="https://github.com/Frizzell-5/LabLens">View on GitHub</a>
+      </div>
     </div>
   </section>
 </main>
-<div id="toast" class="toast" role="status" hidden></div>
-<script src="app.js"></script>
+
+<footer>
+  <div class="wrap">
+    <span><b style="color:var(--ink)">LabLens</b> v0.2 · Made by Shadan Alrawi</span>
+    <a href="https://github.com/Frizzell-5/LabLens">GitHub</a>
+    <a href="https://github.com/Frizzell-5/LabLens/issues">Report an issue</a>
+    <span class="sp">Built on Pyodide, NumPy, SciPy, pandas and matplotlib.</span>
+  </div>
+</footer>
+
+<script>
+  // Highlight the guide section in view.
+  (function () {
+    const links = Array.from(document.querySelectorAll(".toc a"));
+    if (!("IntersectionObserver" in window) || !links.length) return;
+    const map = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          links.forEach((a) => a.classList.remove("on"));
+          map.get(e.target.id)?.classList.add("on");
+        }
+      });
+    }, { rootMargin: "-30% 0px -60% 0px" });
+    map.forEach((_, id) => { const el = document.getElementById(id); if (el) io.observe(el); });
+  })();
+</script>
 </body>
 </html>

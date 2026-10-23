@@ -8,7 +8,20 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const uid = () => Math.random().toString(36).slice(2, 10);
 const slug = (s) => (String(s || "lablens").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lablens");
+const clone = (o) => JSON.parse(JSON.stringify(o));
 const STORE_KEY = "lablens.project.v1";
+const STYLES_KEY = "lablens.styles.v1";
+const SECTIONS_KEY = "lablens.sections.v1";
+
+function store(key, value) {
+  try {
+    if (value === undefined) return JSON.parse(localStorage.getItem(key) || "null");
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (e) {
+    return value === undefined ? null : false;
+  }
+}
 
 function fmtNum(v) {
   if (v === null || v === undefined || v === "") return "";
@@ -24,7 +37,7 @@ function toast(text) {
   t.textContent = text;
   t.hidden = false;
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => (t.hidden = true), 2600);
+  toast.timer = setTimeout(() => (t.hidden = true), 2800);
 }
 
 function download(name, data, type) {
@@ -90,17 +103,31 @@ const DEFAULT_SETTINGS = {
     time_col: "", time_unit: "seconds", value_col: "", valid_min: "", valid_max: "", filter_col: "", filter_min: "", filter_max: "",
     bin: 30, baseline_start: -5, baseline_end: 0, window_start: -10, window_end: 30, event_label: "Injection", norm: "pct",
     metric: "mean", endpoint_start: 25, endpoint_end: 30, pair_subjects: false, test: "auto", equal_var: false, posthoc: "all",
-    group_order: "", band: "sem", show_traces: true, show_event: true, shade_baseline: true, shade_endpoint: true,
+    group_order: "", band: "sem", band_style: "band", show_traces: true, show_event: true, shade_baseline: true, shade_endpoint: true,
   },
   correlation: { dataset: "", x_col: "", y_col: "", group_col: "", group_order: "", method: "pearson", fit: true, ci: true, annotate: true },
   dose: { dataset: "", x_col: "", x_unit: "", x_scale: 1, mode: "curves", y_cols: [], curve_name: "Response", fix_bottom: "", fix_top: "", show_ec50: true, all_points: false, ec_label: "" },
 };
 
+// Everything about the look of a figure. Quick styles reset these and nothing else.
+const LOOK_DEFAULTS = {
+  width: 4, height: 3.4, theme: "light", bg_color: "", axes_color: "", ink_color: "",
+  font: "sans", font_size: 10, title_size: "", label_size: "", tick_size: "", title_bold: true, label_bold: false, title_align: "center",
+  palette: "lablens", palette_reverse: false,
+  bar_width: 0.62, jitter: 0.12, fill: "light", fill_alpha: 0.25, edge_width: "",
+  show_points: true, point_shape: "o", marker_size: 5, point_alpha: 0.85, point_edge: "auto", point_edge_width: 0.5,
+  line_width: 1.5, axis_width: "", error: "sem", error_dir: "both", cap_size: "", error_width: "",
+  line_markers: false, band_alpha: 0.18, trace_alpha: 0.35,
+  sig: "stars", show_ns: false, sig_size: "", show_n: false,
+  spine_left: true, spine_bottom: true, spine_top: false, spine_right: false,
+  offset_axes: 0, trim_axes: false, tick_dir: "out", tick_length: 3.5, minor_ticks: false, cat_ticks: false,
+  grid: "none", grid_style: "solid", grid_alpha: 0.15, legend: "best", legend_frame: false, legend_cols: 1,
+};
 const DEFAULT_STYLE = {
-  width: 4, height: 3.4, font_size: 10, line_width: 1.5, marker_size: 5, point_alpha: 0.85, palette: "lablens",
-  custom_colors: "", plot_kind: "bar", error: "sem", fill: "light", show_points: true, sig: "stars", show_ns: false,
-  grid: false, despine: true, legend: "best", title: "", xlabel: "", ylabel: "", ymin: "", ymax: "", logy: false,
-  xrot: 0, show_n: false, theme: "light", dpi: 300, transparent: false, title_bold: true, font: "sans",
+  ...LOOK_DEFAULTS,
+  plot_kind: "bar", orientation: "vertical", custom_colors: "", groups: {}, title: "", xlabel: "", ylabel: "", legend_title: "",
+  ymin: "", ymax: "", xmin: "", xmax: "", logy: false, logx: false, ytick_step: "", xtick_step: "", y_decimals: "", xrot: 0,
+  panel_label: "", ref_lines: "", endpoint_width: "", dpi: 300, transparent: false, custom_rc: "", custom_code: "",
 };
 
 const PALETTES = [
@@ -109,18 +136,49 @@ const PALETTES = [
   ["tol", "Tol bright · colorblind-safe", ["#4477AA", "#EE6677", "#228833", "#CCBB44", "#66CCEE", "#AA3377"]],
   ["muted", "Muted", ["#4C72B0", "#DD8452", "#55A868", "#C44E52", "#8172B3", "#937860"]],
   ["pastel", "Pastel", ["#8DA0CB", "#FC8D62", "#66C2A5", "#E78AC3", "#A6D854", "#FFD92F"]],
+  ["earth", "Earth", ["#5F7161", "#C9A66B", "#8C5E58", "#A3B18A", "#3A5A40", "#DDB892"]],
   ["ocean", "Ocean", ["#023E8A", "#0096C7", "#48CAE4", "#03045E", "#00B4D8", "#90E0EF"]],
   ["sunset", "Sunset", ["#3D348B", "#F18701", "#7678ED", "#F35B04", "#F7B801", "#9B2226"]],
+  ["neon", "Neon", ["#00F5D4", "#F15BB5", "#FEE440", "#00BBF9", "#9B5DE5", "#F72585"]],
   ["grayscale", "Grayscale", ["#1F1F1F", "#8A8A8A", "#C4C4C4", "#525252", "#A8A8A8", "#6E6E6E"]],
 ];
+const COLORMAPS = [
+  ["Sequential", ["viridis", "plasma", "inferno", "magma", "cividis", "Blues", "Greens", "Reds", "Purples", "Oranges", "Greys", "YlGnBu", "YlOrRd", "PuBuGn", "RdPu", "BuPu", "copper", "bone"]],
+  ["Diverging", ["coolwarm", "RdBu", "RdYlBu", "PiYG", "PRGn", "BrBG", "PuOr", "Spectral", "seismic"]],
+  ["Qualitative", ["tab10", "tab20", "Set1", "Set2", "Set3", "Dark2", "Paired", "Accent", "Pastel1", "Pastel2"]],
+  ["Cyclic & other", ["twilight", "hsv", "turbo", "rainbow", "terrain", "ocean", "gist_earth", "cubehelix", "spring", "summer", "autumn", "winter", "cool", "hot"]],
+];
+const FONT_OPTIONS = [
+  ["Built in", [["sans", "Sans-serif (Arial / Helvetica style)"], ["serif", "Serif (Times style)"], ["mono", "Monospace"]]],
+  ["Web fonts, exact in every export", [["lato", "Lato"], ["fira", "Fira Sans"], ["barlow", "Barlow"], ["poppins", "Poppins"], ["ptserif", "PT Serif"], ["crimson", "Crimson Text"], ["courier", "Courier Prime"], ["spacemono", "Space Mono"], ["comic", "Comic Neue"]]],
+];
+const MARKERS = [["", "Default"], ["o", "● Circle"], ["s", "■ Square"], ["^", "▲ Triangle"], ["v", "▼ Down triangle"], ["D", "◆ Diamond"], ["d", "♦ Thin diamond"], ["p", "⬟ Pentagon"], ["h", "⬢ Hexagon"], ["*", "★ Star"], ["X", "✖ Cross"], ["P", "✚ Plus"], ["<", "◀ Left"], [">", "▶ Right"]];
+const HATCHES = [["", "No pattern"], ["/", "Diagonal ／"], ["\\", "Diagonal ＼"], ["//", "Dense ／"], ["x", "Crosshatch"], ["xx", "Dense crosshatch"], ["+", "Grid"], ["-", "Horizontal lines"], ["|", "Vertical lines"], [".", "Dots"], ["o", "Circles"], ["*", "Stars"]];
+const LINESTYLES = [["", "Solid line"], ["--", "Dashed"], [":", "Dotted"], ["-.", "Dash-dot"]];
+const PLOT_KINDS = [["bar", "Bar"], ["dot", "Scatter dot"], ["mean", "Mean ± error"], ["box", "Box"], ["violin", "Violin"], ["boxviolin", "Box + violin"], ["raincloud", "Raincloud"], ["beeswarm", "Beeswarm"], ["strip", "Strip"], ["lollipop", "Lollipop"]];
 
 const PRESETS = [
-  { name: "Clean", desc: "Balanced default", v: { width: 4, height: 3.4, font_size: 10, line_width: 1.5, marker_size: 5, palette: "lablens", fill: "light", theme: "light", grid: false, despine: true, font: "sans" } },
-  { name: "Journal", desc: "1 column, 89 mm", v: { width: 3.5, height: 2.8, font_size: 8, line_width: 1, marker_size: 3.5, palette: "okabe", fill: "light", theme: "light", grid: false, despine: true, font: "sans" } },
-  { name: "Classic", desc: "Bold, black & white", v: { width: 3.6, height: 3.6, font_size: 11, line_width: 2, marker_size: 5, palette: "grayscale", fill: "outline", theme: "light", grid: false, despine: true, font: "sans" } },
-  { name: "Poster", desc: "Large type", v: { width: 6.5, height: 5, font_size: 18, line_width: 2.6, marker_size: 8, palette: "tol", fill: "solid", theme: "light", grid: false, despine: true } },
-  { name: "Slides", desc: "Dark background", v: { width: 6.4, height: 4.2, font_size: 14, line_width: 2, marker_size: 6.5, palette: "tol", fill: "light", theme: "dark", grid: false, despine: true } },
-  { name: "Soft", desc: "Pastel with grid", v: { width: 4.2, height: 3.4, font_size: 10, line_width: 1.3, marker_size: 5, palette: "pastel", fill: "solid", theme: "light", grid: true, despine: true } },
+  { name: "Clean", desc: "Balanced default", v: {} },
+  { name: "Journal", desc: "1 column, 89 mm", v: { width: 3.5, height: 2.8, font_size: 8, line_width: 1, marker_size: 3.5, palette: "okabe" } },
+  { name: "Classic", desc: "Bold black axes", v: { width: 3.6, height: 3.6, font_size: 11, line_width: 2, axis_width: 1.8, tick_length: 6, marker_size: 5.5, palette: "grayscale", fill: "outline", label_bold: true } },
+  { name: "Minimal", desc: "Floating axes", v: { font: "fira", palette: "tol", fill: "outline", offset_axes: 8, trim_axes: true, line_width: 1.2, point_edge: "none" } },
+  { name: "Editorial", desc: "Serif, left title", v: { font: "crimson", font_size: 11, palette: "earth", fill: "solid", title_align: "left", spine_left: false, grid: "y", grid_style: "dotted", grid_alpha: 0.4, tick_length: 0 } },
+  { name: "Boxed", desc: "Full frame, ticks in", v: { font: "ptserif", palette: "muted", spine_top: true, spine_right: true, tick_dir: "in", minor_ticks: true, fill: "light", fill_alpha: 0.35 } },
+  { name: "Typewriter", desc: "Mono, grayscale", v: { font: "courier", palette: "grayscale", fill: "outline", line_width: 1.3, point_edge: "ink", point_alpha: 1 } },
+  { name: "Soft", desc: "Pastel with grid", v: { width: 4.2, palette: "pastel", fill: "solid", grid: "both", line_width: 1.3, font: "lato" } },
+  { name: "Poster", desc: "Large type", v: { width: 6.5, height: 5, font_size: 18, line_width: 2.6, marker_size: 8, palette: "tol", fill: "solid", font: "poppins" } },
+  { name: "Slides", desc: "Dark background", v: { width: 6.4, height: 4.2, font_size: 14, line_width: 2, marker_size: 6.5, palette: "tol", theme: "dark", font: "barlow" } },
+  { name: "Neon", desc: "Glow on black", v: { theme: "dark", bg_color: "#0B0B12", palette: "neon", fill: "light", fill_alpha: 0.12, line_width: 2, font: "spacemono", point_edge: "none" } },
+  { name: "Sketch", desc: "Playful", v: { font: "comic", font_size: 11, palette: "sunset", fill: "light", fill_alpha: 0.35, line_width: 2.2, marker_size: 6, cap_size: 0 } },
+];
+
+const CODE_EXAMPLES = [
+  ["Custom ticks", "ax.set_yticks([0, 250, 500, 750, 1000])"],
+  ["Shade a range", "ax.axhspan(300, 450, color='0.92', zorder=0)"],
+  ["Add a note", "ax.text(0.98, 0.95, 'n = 8 mice per group', transform=ax.transAxes, ha='right', fontsize=8)"],
+  ["Italic labels", "for t in ax.get_xticklabels():\n    t.set_fontstyle('italic')"],
+  ["Arrow", "ax.annotate('peak', xy=(0, 800), xytext=(0.6, 950), arrowprops=dict(arrowstyle='->'))"],
+  ["Broken look", "ax.spines['left'].set_linestyle((0, (4, 2)))"],
 ];
 
 const ANALYSES = [
@@ -137,7 +195,7 @@ const ANALYSES = [
 function freshState() {
   return {
     app: "LabLens",
-    version: 1,
+    version: 2,
     name: "Untitled analysis",
     analysis: "compare",
     step: "analysis",
@@ -145,8 +203,8 @@ function freshState() {
     example: null,
     datasets: [],
     active: null,
-    settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
-    style: { ...DEFAULT_STYLE },
+    settings: clone(DEFAULT_SETTINGS),
+    style: clone(DEFAULT_STYLE),
   };
 }
 
@@ -154,41 +212,47 @@ let state = freshState();
 const inspected = {}; // dataset id -> inspect result {columns, preview, n_rows, separator} | {error}
 let lastResult = null;
 let engineSource = null;
+const openSections = store(SECTIONS_KEY) || {};
 
 // ============================================================================
 // Python engine (web worker)
 // ============================================================================
-const worker = new Worker("worker.js");
+const servedFromDisk = location.protocol === "file:";
+const worker = servedFromDisk ? null : new Worker("worker.js");
 let engineReady = false;
 let reqId = 0;
 const pending = new Map();
 let queuedExample = null;
 
-worker.onmessage = (e) => {
-  const m = e.data;
-  if (m.type === "status") {
-    if (!engineReady) {
-      setStatus("loading", m.text);
-      $("#loading-text").textContent = m.text;
-    } else {
-      setStatus(m.text === "Ready" ? "ready" : "loading", m.text === "Ready" ? "Python ready" : m.text);
+if (worker) {
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (m.type === "status") {
+      if (!engineReady) {
+        setStatus("loading", m.text);
+        $("#loading-text").textContent = m.text;
+      } else if (!running) {
+        setStatus(m.text === "Ready" ? "ready" : "loading", m.text === "Ready" ? "Python ready" : m.text);
+      }
+    } else if (m.type === "ready") {
+      engineReady = true;
+      setStatus("ready", "Python ready");
+      $("#loading").hidden = true;
+      onEngineReady();
+    } else if (m.type === "failed") {
+      setStatus("failed", "Python didn't load");
+      $("#loading-text").textContent = "The Python engine couldn't load: " + m.text + ". Check your internet connection and reload the page.";
+      $(".spinner").hidden = true;
+    } else if (m.type === "result") {
+      const resolve = pending.get(m.id);
+      pending.delete(m.id);
+      if (resolve) resolve(m.out);
     }
-  } else if (m.type === "ready") {
-    engineReady = true;
-    setStatus("ready", "Python ready");
-    $("#loading").hidden = true;
-    onEngineReady();
-  } else if (m.type === "failed") {
-    setStatus("failed", "Python didn't load");
-    $("#loading-text").textContent = "The Python engine couldn't load: " + m.text + ". Check your internet connection and reload the page.";
-  } else if (m.type === "result") {
-    const resolve = pending.get(m.id);
-    pending.delete(m.id);
-    if (resolve) resolve(m.out);
-  }
-};
+  };
+}
 
 function call(cmd, args) {
+  if (!worker) return Promise.resolve({ error: "The Python engine isn't running." });
   return new Promise((resolve) => {
     const id = ++reqId;
     pending.set(id, resolve);
@@ -283,55 +347,102 @@ async function runNow() {
 }
 
 // ============================================================================
-// Persistence
+// Persistence and history
 // ============================================================================
 let saveTimer = null;
 let autosaveWarned = false;
 function autosave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(state));
-    } catch (e) {
-      if (!autosaveWarned) {
-        autosaveWarned = true;
-        toast("This project is too big to keep in the browser. Use Save to keep a copy.");
-      }
+    if (!store(STORE_KEY, state) && !autosaveWarned) {
+      autosaveWarned = true;
+      toast("This project is too big to keep in the browser. Use Save to keep a copy.");
     }
   }, 600);
 }
 
 function restore() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return false;
-    return adopt(JSON.parse(raw));
-  } catch (e) {
-    return false;
-  }
+  return adopt(store(STORE_KEY));
 }
 
 function adopt(obj) {
   if (!obj || obj.app !== "LabLens" || !Array.isArray(obj.datasets)) return false;
   const base = freshState();
+  const style = { ...DEFAULT_STYLE, ...(obj.style || {}) };
+  // Projects from v0.1 used one "despine" switch and a true/false grid.
+  if (obj.style && "despine" in obj.style && !("spine_top" in obj.style)) {
+    style.spine_top = style.spine_right = !obj.style.despine;
+  }
+  if (typeof style.grid === "boolean") style.grid = style.grid ? "both" : "none";
+  delete style.despine;
+  if (!style.groups || typeof style.groups !== "object") style.groups = {};
   state = {
     ...base,
     ...obj,
+    version: 2,
     settings: Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map((k) => [k, { ...DEFAULT_SETTINGS[k], ...(obj.settings?.[k] || {}) }])),
-    style: { ...DEFAULT_STYLE, ...(obj.style || {}) },
+    style,
   };
   state.datasets = state.datasets.map((d) => ({ id: d.id || uid(), name: d.name || "Table", text: d.text || "", meta: { group: "", subject: "", event: "", exclude: "", ...(d.meta || {}) } }));
   if (!state.datasets.some((d) => d.id === state.active)) state.active = state.datasets[0]?.id || null;
   return true;
 }
 
-function changed({ run = true, clearExample = false } = {}) {
+// Undo history covers analysis choices, settings and style (not the data tables).
+const history = { past: [], future: [], timer: null, last: null };
+function snapshot() {
+  return JSON.stringify({ analysis: state.analysis, settings: state.settings, style: state.style });
+}
+function recordHistory() {
+  clearTimeout(history.timer);
+  history.timer = setTimeout(() => {
+    const now = snapshot();
+    if (history.last !== null && now !== history.last) {
+      history.past.push(history.last);
+      if (history.past.length > 200) history.past.shift();
+      history.future = [];
+    }
+    history.last = now;
+    renderUndo();
+  }, 450);
+}
+function applySnapshot(json) {
+  const s = JSON.parse(json);
+  state.analysis = s.analysis;
+  state.settings = s.settings;
+  state.style = s.style;
+  history.last = json;
+  renderPanels();
+  renderUndo();
+  autosave();
+  scheduleRun(10);
+}
+function undo() {
+  clearTimeout(history.timer);
+  const now = snapshot();
+  if (history.last !== null && now !== history.last) history.past.push(history.last);
+  if (!history.past.length) return;
+  history.future.push(now);
+  applySnapshot(history.past.pop());
+}
+function redo() {
+  if (!history.future.length) return;
+  history.past.push(snapshot());
+  applySnapshot(history.future.pop());
+}
+function renderUndo() {
+  $("#btn-undo").disabled = !history.past.length && snapshot() === history.last;
+  $("#btn-redo").disabled = !history.future.length;
+}
+
+function changed({ run = true, clearExample = false, delay } = {}) {
   if (clearExample && state.example) {
     state.example = null;
     $("#example-badge").hidden = true;
   }
   autosave();
-  if (run) scheduleRun();
+  recordHistory();
+  if (run) scheduleRun(delay);
 }
 
 // ============================================================================
@@ -350,7 +461,9 @@ function activeDataset() {
 
 function nextName() {
   const base = state.analysis === "timecourse" ? "Session" : "Table";
-  return base + " " + (state.datasets.length + 1);
+  let n = state.datasets.length + 1;
+  while (state.datasets.some((d) => d.name === base + " " + n)) n++;
+  return base + " " + n;
 }
 
 async function addFiles(files) {
@@ -372,10 +485,9 @@ async function addFiles(files) {
       newDataset(stem, await f.text());
     }
   }
-  if (state.example) changed({ clearExample: true });
   state.datasets.forEach((d) => { if (!inspected[d.id]) scheduleInspect(d.id, 10); });
   renderData();
-  changed();
+  changed({ clearExample: true });
 }
 
 async function loadExample(kind) {
@@ -394,6 +506,7 @@ async function loadExample(kind) {
   ex.datasets.forEach((d) => newDataset(d.name, d.text, d.meta));
   state.active = state.datasets[0]?.id;
   state.settings[kind] = { ...DEFAULT_SETTINGS[kind], ...ex.settings };
+  state.style.groups = {};
   state.example = kind;
   state.name = "Example · " + ANALYSES.find((a) => a.id === kind).title;
   $("#example-badge").hidden = false;
@@ -406,7 +519,7 @@ async function loadExample(kind) {
 // ============================================================================
 // Form builder
 // ============================================================================
-const sec = (title) => ({ type: "section", title });
+const sec = (title, x = {}) => ({ type: "section", title, ...x });
 const note = (text) => ({ type: "note", text });
 const row = (...fields) => ({ type: "row", fields: fields.filter(Boolean) });
 const sel = (key, label, options, x = {}) => ({ type: "select", key, label, options, ...x });
@@ -414,8 +527,24 @@ const seg = (key, label, options, x = {}) => ({ type: "seg", key, label, options
 const tog = (key, label, hint) => ({ type: "toggle", key, label, hint });
 const num = (key, label, x = {}) => ({ type: "number", key, label, ...x });
 const txt = (key, label, x = {}) => ({ type: "text", key, label, ...x });
+const area = (key, label, x = {}) => ({ type: "area", key, label, ...x });
+const color = (key, label, x = {}) => ({ type: "color", key, label, ...x });
 const col = (key, label, names, x = {}) => ({ type: "select", key, label, options: [["", x.none ? "None" : (x.auto || "Auto")]].concat(names.map((n) => [n, n])), ...x });
 const cols = (key, label, names, hint) => ({ type: "checks", key, label, names, hint });
+
+function optionsHTML(options, v) {
+  const flat = [];
+  const html = options.map((o) => {
+    if (Array.isArray(o[1]) && Array.isArray(o[1][0])) {
+      o[1].forEach((x) => flat.push(x));
+      return `<optgroup label="${esc(o[0])}">${o[1].map(([val, lab]) => `<option value="${esc(val)}"${String(v ?? "") === String(val) ? " selected" : ""}>${esc(lab)}</option>`).join("")}</optgroup>`;
+    }
+    flat.push(o);
+    return `<option value="${esc(o[0])}"${String(v ?? "") === String(o[0]) ? " selected" : ""}>${esc(o[1])}</option>`;
+  }).join("");
+  const known = flat.some(([val]) => String(val) === String(v ?? ""));
+  return html + (v && !known ? `<option value="${esc(v)}" selected>${esc(v)} (not found)</option>` : "");
+}
 
 function fieldHTML(f, obj, scope) {
   if (!f) return "";
@@ -423,19 +552,18 @@ function fieldHTML(f, obj, scope) {
   const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : "";
   const v = obj[f.key];
   switch (f.type) {
-    case "section":
-      return `</div><div class="section"><div class="section-title">${esc(f.title)}</div>`;
     case "note":
       return `<span class="hint">${esc(f.text)}</span>`;
     case "row":
-      return `<div class="row${f.fields.length === 3 ? " row-3" : ""}">${f.fields.map((x) => fieldHTML(x, obj, scope)).join("")}</div>`;
-    case "select": {
-      const opts = f.options.map(([val, lab]) => `<option value="${esc(val)}"${String(v ?? "") === String(val) ? " selected" : ""}>${esc(lab)}</option>`);
-      if (v && !f.options.some(([val]) => String(val) === String(v))) opts.push(`<option value="${esc(v)}" selected>${esc(v)} (not found)</option>`);
-      return `<div class="field"><label for="${id}">${esc(f.label)}</label><select id="${id}" data-key="${f.key}" data-kind="select">${opts.join("")}</select>${hint}</div>`;
-    }
+      return `<div class="row${f.fields.length === 3 ? " row-3" : ""}${f.fields.length === 4 ? " row-4" : ""}">${f.fields.map((x) => fieldHTML(x, obj, scope)).join("")}</div>`;
+    case "select":
+      return `<div class="field"><label for="${id}">${esc(f.label)}</label><select id="${id}" data-key="${f.key}" data-kind="select">${optionsHTML(f.options, v)}</select>${hint}</div>`;
     case "seg":
       return `<div class="field"><span class="field-label">${esc(f.label)}</span><div class="segmented" role="group" aria-label="${esc(f.label)}">${f.options
+        .map(([val, lab]) => `<button type="button" id="${id}-${esc(val)}" data-key="${f.key}" data-kind="seg" data-value="${esc(val)}" aria-pressed="${String(v) === String(val)}">${esc(lab)}</button>`)
+        .join("")}</div>${hint}</div>`;
+    case "chips":
+      return `<div class="field"><span class="field-label">${esc(f.label)}</span><div class="chips" role="group" aria-label="${esc(f.label)}">${f.options
         .map(([val, lab]) => `<button type="button" id="${id}-${esc(val)}" data-key="${f.key}" data-kind="seg" data-value="${esc(val)}" aria-pressed="${String(v) === String(val)}">${esc(lab)}</button>`)
         .join("")}</div>${hint}</div>`;
     case "toggle":
@@ -444,6 +572,15 @@ function fieldHTML(f, obj, scope) {
       return `<div class="field"><label for="${id}">${esc(f.label)}</label><input type="number" step="any" id="${id}" data-key="${f.key}" data-kind="number" value="${esc(v ?? "")}" placeholder="${esc(f.placeholder || "auto")}">${hint}</div>`;
     case "text":
       return `<div class="field"><label for="${id}">${esc(f.label)}</label><input type="text" id="${id}" data-key="${f.key}" data-kind="text" value="${esc(v ?? "")}" placeholder="${esc(f.placeholder || "")}" spellcheck="false">${hint}</div>`;
+    case "area":
+      return `<div class="field"><label for="${id}">${esc(f.label)}</label><textarea id="${id}" class="code" rows="${f.rows || 4}" data-key="${f.key}" data-kind="text" placeholder="${esc(f.placeholder || "")}" spellcheck="false">${esc(v ?? "")}</textarea>${hint}</div>`;
+    case "color": {
+      const shown = /^#[0-9a-f]{6}$/i.test(v || "") ? v : (f.auto || "#ffffff");
+      return `<div class="field"><span class="field-label">${esc(f.label)}</span><div class="color-field">
+        <input type="color" id="${id}" data-key="${f.key}" data-kind="color" value="${esc(shown)}" aria-label="${esc(f.label)}">
+        <span class="color-val">${v ? esc(v) : "Automatic"}</span>
+        ${v ? `<button type="button" class="btn btn-small" data-clear="${f.key}">Reset</button>` : ""}</div>${hint}</div>`;
+    }
     case "checks": {
       const chosen = new Set(v || []);
       const items = f.names.length
@@ -451,65 +588,227 @@ function fieldHTML(f, obj, scope) {
         : `<span class="hint">Columns appear here once data is added.</span>`;
       return `<div class="field"><span class="field-label">${esc(f.label)}</span><div class="checks">${items}</div>${hint}</div>`;
     }
-    case "presets":
-      return `<div class="presets">${PRESETS.map((p, i) => `<button type="button" class="preset" data-preset="${i}"><b>${esc(p.name)}</b><small>${esc(p.desc)}</small></button>`).join("")}</div>`;
+    case "presets": {
+      const mine = store(STYLES_KEY) || [];
+      return `<div class="presets">${PRESETS.map((p, i) => `<button type="button" class="preset" data-preset="${i}"><b>${esc(p.name)}</b><small>${esc(p.desc)}</small></button>`).join("")}</div>
+        ${mine.length ? `<span class="field-label">My styles</span><div class="presets">${mine.map((p, i) => `<div class="preset mine"><button type="button" data-mystyle="${i}"><b>${esc(p.name)}</b><small>Saved style</small></button><button type="button" class="x" data-delstyle="${i}" aria-label="Delete ${esc(p.name)}">×</button></div>`).join("")}</div>` : ""}
+        <div class="save-style"><input type="text" id="mystyle-name" placeholder="Name this look, e.g. Lab house style" spellcheck="false"><button type="button" class="btn btn-small" id="btn-save-style">Save style</button></div>
+        <div class="btn-row"><button type="button" class="btn btn-small" id="btn-export-style">Export style file</button><button type="button" class="btn btn-small" id="btn-import-style">Import style file</button><button type="button" class="btn btn-small btn-danger" id="btn-reset-style">Reset all styling</button><input type="file" id="import-style" accept=".json" hidden></div>
+        <span class="hint">A style file carries every look setting, so a whole lab can share one house style.</span>`;
+    }
     case "palettes":
       return `<div class="palettes" role="group" aria-label="Color palette">${PALETTES.map(
-        ([key, name, colors]) => `<button type="button" class="palette" data-key="palette" data-kind="seg" data-value="${key}" aria-pressed="${v === key || obj.palette === key}"><span class="swatches">${colors.map((c) => `<i style="background:${c}"></i>`).join("")}</span><span>${esc(name)}</span></button>`
-      ).join("")}</div>`;
+        ([key, name, colors]) => `<button type="button" class="palette" data-key="palette" data-kind="seg" data-value="${key}" aria-pressed="${obj.palette === key}"><span class="swatches">${colors.map((c) => `<i style="background:${c}"></i>`).join("")}</span><span>${esc(name)}</span></button>`
+      ).join("")}</div>
+      <div class="field"><label for="f-${scope}-cmap">Or any matplotlib colormap</label><select id="f-${scope}-cmap" data-kind="cmap"><option value="">None selected</option>${COLORMAPS.map(([grp, list]) => `<optgroup label="${esc(grp)}">${list.map((m) => `<option value="cmap:${m}"${obj.palette === "cmap:" + m ? " selected" : ""}>${m}</option>`).join("")}</optgroup>`).join("")}</select></div>`;
+    case "groups": {
+      const gs = lastResult?.group_styles || [];
+      if (!gs.length) return `<span class="hint">Your groups appear here after the first figure is drawn.</span>`;
+      const groups = obj.groups || {};
+      return `<div class="groups">${gs.map((g, i) => {
+        const cur = groups[g.name] || {};
+        const gid = `g-${scope}-${i}`;
+        return `<div class="group-row">
+          <input type="color" id="${gid}-color" data-group="${esc(g.name)}" data-gkey="color" value="${esc(cur.color || g.color)}" aria-label="Color for ${esc(g.name)}">
+          <div class="group-main">
+            <input type="text" id="${gid}-label" data-group="${esc(g.name)}" data-gkey="label" value="${esc(cur.label || "")}" placeholder="${esc(g.name)}" aria-label="Display name for ${esc(g.name)}" spellcheck="false">
+            <div class="group-opts">
+              <select id="${gid}-marker" data-group="${esc(g.name)}" data-gkey="marker" aria-label="Marker">${optionsHTML(MARKERS, cur.marker || "")}</select>
+              <select id="${gid}-hatch" data-group="${esc(g.name)}" data-gkey="hatch" aria-label="Fill pattern">${optionsHTML(HATCHES, cur.hatch || "")}</select>
+              <select id="${gid}-linestyle" data-group="${esc(g.name)}" data-gkey="linestyle" aria-label="Line style">${optionsHTML(LINESTYLES, cur.linestyle || "")}</select>
+            </div>
+          </div>
+          ${Object.keys(cur).length ? `<button type="button" class="btn btn-small" data-group-reset="${esc(g.name)}" title="Back to automatic">Reset</button>` : ""}
+        </div>`;
+      }).join("")}</div>`;
+    }
+    case "examples":
+      return `<div class="btn-row">${CODE_EXAMPLES.map(([lab], i) => `<button type="button" class="btn btn-small" data-code-example="${i}">${esc(lab)}</button>`).join("")}</div>`;
     default:
       return "";
   }
 }
 
-function renderForm(panel, fields, obj, scope) {
+// Fields are grouped into collapsible sections; open/closed state is remembered per browser.
+function renderForm(panel, fields, obj, scope, intro = "", defaultOpen = () => true) {
   const focusId = document.activeElement && panel.contains(document.activeElement) ? document.activeElement.id : null;
+  const selStart = focusId && document.activeElement.selectionStart;
   const scrollTop = panel.scrollTop;
-  panel.innerHTML = `<div class="section">${fields.filter(Boolean).map((f) => fieldHTML(f, obj, scope)).join("")}</div>`.replace(/<div class="section"><\/div>/g, "");
+  let html = intro;
+  let current = null;
+  const close = () => (current ? "</div></details>" : "");
+  for (const f of fields.filter(Boolean)) {
+    if (f.type === "section") {
+      html += close();
+      const key = scope + ":" + f.title;
+      const open = key in openSections ? openSections[key] : defaultOpen(f.title);
+      html += `<details class="section" data-sec="${esc(key)}"${open ? " open" : ""}><summary class="section-title">${esc(f.title)}</summary><div class="section-body">`;
+      current = f.title;
+    } else {
+      html += fieldHTML(f, obj, scope);
+    }
+  }
+  html += close();
+  panel.innerHTML = html;
   panel.scrollTop = scrollTop;
-  if (focusId) document.getElementById(focusId)?.focus();
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    if (el) {
+      el.focus();
+      try { if (selStart != null && el.setSelectionRange) el.setSelectionRange(selStart, selStart); } catch (e) { /* not a text field */ }
+    }
+  }
 }
 
-// One delegated handler per form panel.
 function bindForm(panel, getObj, rerender) {
+  panel.addEventListener("toggle", (e) => {
+    const d = e.target;
+    if (d.matches && d.matches("details[data-sec]")) {
+      openSections[d.dataset.sec] = d.open;
+      store(SECTIONS_KEY, openSections);
+    }
+  }, true);
   panel.addEventListener("input", (e) => {
     const el = e.target;
-    if (!el.dataset.key) return;
     const obj = getObj();
+    if (el.dataset.gkey && (el.dataset.gkey === "label" || el.dataset.gkey === "color")) {
+      setGroup(el.dataset.group, el.dataset.gkey, el.value);
+      return changed();
+    }
+    if (!el.dataset.key) return;
     if (el.dataset.kind === "number" || el.dataset.kind === "text") {
       obj[el.dataset.key] = el.value;
+      changed({ delay: el.dataset.key === "custom_code" || el.dataset.key === "custom_rc" ? 900 : undefined });
+    } else if (el.dataset.kind === "color") {
+      obj[el.dataset.key] = el.value;
+      const label = el.parentElement.querySelector(".color-val");
+      if (label) label.textContent = el.value;
       changed();
     }
   });
   panel.addEventListener("change", (e) => {
     const el = e.target;
-    if (!el.dataset.key) return;
     const obj = getObj();
+    if (el.dataset.gkey && el.tagName === "SELECT") {
+      setGroup(el.dataset.group, el.dataset.gkey, el.value);
+      rerender();
+      return changed();
+    }
+    if (el.dataset.gkey === "color" || el.dataset.kind === "color") return rerender();
+    if (el.dataset.kind === "cmap") {
+      if (el.value) obj.palette = el.value;
+      rerender();
+      return changed();
+    }
+    if (!el.dataset.key) return;
     const k = el.dataset.key;
     if (el.dataset.kind === "select") obj[k] = el.value;
     else if (el.dataset.kind === "toggle") obj[k] = el.checked;
-    else if (el.dataset.kind === "check") {
-      obj[k] = $$(`input[data-key="${k}"]:checked`, panel).map((x) => x.value);
-    } else return;
+    else if (el.dataset.kind === "check") obj[k] = $$(`input[data-key="${k}"]:checked`, panel).map((x) => x.value);
+    else return;
     rerender();
     changed();
   });
   panel.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-kind='seg']");
+    const t = e.target;
+    const b = t.closest("[data-kind='seg']");
     if (b) {
       getObj()[b.dataset.key] = b.dataset.value;
       rerender();
-      changed();
+      return changed();
+    }
+    const clr = t.closest("[data-clear]");
+    if (clr) {
+      getObj()[clr.dataset.clear] = "";
+      rerender();
+      return changed();
+    }
+    const gr = t.closest("[data-group-reset]");
+    if (gr) {
+      delete state.style.groups[gr.dataset.groupReset];
+      rerender();
+      return changed();
+    }
+    const p = t.closest("[data-preset]");
+    if (p) return applyLook(PRESETS[+p.dataset.preset].v, PRESETS[+p.dataset.preset].name);
+    const ms = t.closest("[data-mystyle]");
+    if (ms) {
+      const mine = store(STYLES_KEY) || [];
+      const item = mine[+ms.dataset.mystyle];
+      if (item) applyLook(item.v, item.name, true);
       return;
     }
-    const p = e.target.closest("[data-preset]");
-    if (p) {
-      Object.assign(state.style, PRESETS[+p.dataset.preset].v);
+    const ds = t.closest("[data-delstyle]");
+    if (ds) {
+      const mine = store(STYLES_KEY) || [];
+      mine.splice(+ds.dataset.delstyle, 1);
+      store(STYLES_KEY, mine);
+      return rerender();
+    }
+    if (t.closest("#btn-save-style")) return saveMyStyle();
+    if (t.closest("#btn-export-style")) return download(slug(state.name) + "-style.json", JSON.stringify({ app: "LabLens", kind: "style", style: lookOf(state.style) }, null, 1), "application/json");
+    if (t.closest("#btn-import-style")) return $("#import-style").click();
+    if (t.closest("#btn-reset-style")) {
+      return armConfirm(t.closest("#btn-reset-style"), "Click again to reset", () => {
+        state.style = { ...clone(DEFAULT_STYLE), plot_kind: state.style.plot_kind, orientation: state.style.orientation };
+        rerender();
+        changed();
+        toast("All styling reset");
+      });
+    }
+    const ce = t.closest("[data-code-example]");
+    if (ce) {
+      const snippet = CODE_EXAMPLES[+ce.dataset.codeExample][1];
+      state.style.custom_code = (state.style.custom_code ? state.style.custom_code.replace(/\s*$/, "\n") : "") + snippet + "\n";
       rerender();
-      changed();
-      toast(PRESETS[+p.dataset.preset].name + " style applied");
+      return changed();
     }
   });
+  panel.addEventListener("change", async (e) => {
+    if (e.target.id !== "import-style" || !e.target.files.length) return;
+    const f = e.target.files[0];
+    e.target.value = "";
+    try {
+      const obj = JSON.parse(await f.text());
+      if (obj.app !== "LabLens" || obj.kind !== "style" || typeof obj.style !== "object") throw new Error();
+      applyLook(obj.style, f.name.replace(/\.json$/, ""), true);
+    } catch (err) {
+      toast("That file isn't a LabLens style file.");
+    }
+  });
+}
+
+function setGroup(name, key, value) {
+  const groups = state.style.groups || (state.style.groups = {});
+  const g = { ...(groups[name] || {}) };
+  if (value) g[key] = value;
+  else delete g[key];
+  if (Object.keys(g).length) groups[name] = g;
+  else delete groups[name];
+}
+
+const LOOK_KEYS = Object.keys(LOOK_DEFAULTS).concat(["custom_colors", "custom_rc"]);
+function lookOf(style) {
+  return Object.fromEntries(LOOK_KEYS.map((k) => [k, style[k]]));
+}
+function applyLook(v, name, exact = false) {
+  Object.assign(state.style, exact ? {} : clone(LOOK_DEFAULTS), v);
+  renderStyle();
+  changed();
+  toast(name + " style applied");
+}
+function saveMyStyle() {
+  const input = $("#mystyle-name");
+  const name = (input?.value || "").trim();
+  if (!name) {
+    input?.focus();
+    return toast("Give the style a name first.");
+  }
+  const mine = (store(STYLES_KEY) || []).filter((s) => s.name !== name);
+  mine.push({ name, v: lookOf(state.style) });
+  if (!store(STYLES_KEY, mine)) return toast("Couldn't save in this browser. Use Export style file instead.");
+  renderStyle();
+  toast("Saved “" + name + "”");
 }
 
 // ============================================================================
@@ -528,7 +827,7 @@ function columnsFor(dsId) {
   };
 }
 
-function datasetField(s) {
+function datasetField() {
   if (state.datasets.length < 2) return null;
   return sel("dataset", "Data table", [["", "First table"]].concat(state.datasets.map((d) => [d.id, d.name])));
 }
@@ -541,12 +840,12 @@ const SETTINGS_SCHEMA = {
     const c = columnsFor(s.dataset);
     return [
       sec("Data"),
-      datasetField(s),
+      datasetField(),
       seg("layout", "Table layout", [["wide", "One column per group"], ["long", "Values + group column"]]),
       s.layout !== "long" && cols("columns", "Groups to include", c.numeric, "Leave all unchecked to use every numeric column."),
       s.layout === "long" && row(col("value_col", "Value column", c.numeric), col("group_col", "Group column", c.all)),
       txt("group_order", "Group order", { placeholder: "e.g. Control, Low, High", hint: "Optional. Groups you leave out keep their table order." }),
-      txt("y_name", "Measurement name", { placeholder: "e.g. Tumor volume (mm³)", hint: "Becomes the y-axis label." }),
+      txt("y_name", "Measurement name", { placeholder: "e.g. Tumor volume (mm³)", hint: "Becomes the value-axis label." }),
       sec("Statistics"),
       s.layout !== "long" && tog("paired", "Paired / repeated measures", "Each row is one subject measured in every group."),
       sel("test", "Test", TEST_OPTIONS),
@@ -581,7 +880,7 @@ const SETTINGS_SCHEMA = {
       sel("posthoc", "Multiple comparisons", POSTHOC_OPTIONS),
       txt("group_order", "Group order", { placeholder: "e.g. Saline, Morphine" }),
       sec("Time-course display"),
-      sel("band", "Shaded band", [["sem", "Mean ± SEM"], ["sd", "Mean ± SD"], ["none", "None"]]),
+      row(sel("band", "Spread", [["sem", "Mean ± SEM"], ["sd", "Mean ± SD"], ["none", "None"]]), s.band !== "none" && seg("band_style", "Show as", [["band", "Band"], ["bars", "Error bars"]])),
       tog("show_traces", "Show each session as a thin line"),
       tog("show_event", "Mark the event"),
       tog("shade_baseline", "Shade the baseline window"),
@@ -592,7 +891,7 @@ const SETTINGS_SCHEMA = {
     const c = columnsFor(s.dataset);
     return [
       sec("Data"),
-      datasetField(s),
+      datasetField(),
       row(col("x_col", "X column", c.numeric), col("y_col", "Y column", c.numeric)),
       col("group_col", "Color by group", c.all, { none: true }),
       s.group_col && txt("group_order", "Group order"),
@@ -608,7 +907,7 @@ const SETTINGS_SCHEMA = {
     const xcol = s.x_col || c.numeric[0];
     return [
       sec("Data"),
-      datasetField(s),
+      datasetField(),
       col("x_col", "Concentration column", c.numeric),
       row(txt("x_unit", "Unit", { placeholder: "e.g. nM" }), num("x_scale", "Multiply by", { placeholder: "1", hint: "Unit conversion" })),
       seg("mode", "Response columns are", [["curves", "Separate curves"], ["replicates", "Replicates of one"]]),
@@ -625,39 +924,87 @@ const SETTINGS_SCHEMA = {
 
 function styleSchema() {
   const s = state.style;
-  const groupPlot = state.analysis === "compare" || state.analysis === "timecourse";
+  const a = state.analysis;
+  const groupPlot = a === "compare" || a === "timecourse";
+  const lines = a === "timecourse" || a === "dose" || a === "correlation";
+  const horizontal = groupPlot && s.orientation === "horizontal";
   const mm = (v) => Math.round(parseFloat(v || 0) * 25.4);
+  const dark = s.theme === "dark";
   return [
     sec("Quick styles"),
     { type: "presets" },
-    sec("Plot"),
-    groupPlot && sel("plot_kind", state.analysis === "timecourse" ? "Endpoint plot type" : "Plot type", [["bar", "Bar with points"], ["dot", "Scatter dot (mean line)"], ["box", "Box plot"], ["violin", "Violin"], ["raincloud", "Raincloud"]]),
-    row(sel("error", "Error bars", [["sem", "SEM"], ["sd", "SD"], ["ci95", "95% CI"], ["none", "None"]]), groupPlot && sel("fill", "Fill", [["light", "Light"], ["solid", "Solid"], ["outline", "Outline"]])),
+    groupPlot && sec("Plot type"),
+    groupPlot && { type: "chips", key: "plot_kind", label: a === "timecourse" ? "Endpoint plot" : "Plot", options: PLOT_KINDS },
+    groupPlot && seg("orientation", "Direction", [["vertical", "Vertical"], ["horizontal", "Horizontal"]]),
+    groupPlot && row(num("bar_width", "Bar / box width", { placeholder: "0.62", hint: "0.05 to 1" }), num("jitter", "Point spread", { placeholder: "0.12", hint: "0 = in a line" })),
+    groupPlot && seg("fill", "Fill", [["light", "Light"], ["solid", "Solid"], ["outline", "Outline"]]),
+    groupPlot && row(s.fill === "light" && num("fill_alpha", "Fill opacity", { placeholder: "0.25" }), num("edge_width", "Outline width", { placeholder: "auto" })),
+    sec("Groups"),
+    note("Rename any group, or give it its own color, marker, fill pattern and line style."),
+    { type: "groups" },
+    sec("Colors"),
+    { type: "palettes" },
+    tog("palette_reverse", "Reverse color order"),
+    txt("custom_colors", "Your own colors", { placeholder: "#333333, #D1495B", hint: "Hex codes in group order. They replace palette colors one by one." }),
+    seg("theme", "Base", [["light", "Light"], ["dark", "Dark"]]),
+    row(color("bg_color", "Figure background", { auto: dark ? "#15181d" : "#ffffff" }), color("axes_color", "Plot area", { auto: dark ? "#15181d" : "#ffffff" })),
+    color("ink_color", "Text and axis color", { auto: dark ? "#e6e8ec" : "#1a1d23" }),
+    sec("Points and markers"),
     groupPlot && tog("show_points", "Show individual points"),
-    row(num("marker_size", "Point size"), num("point_alpha", "Point opacity", { hint: "0 to 1" }), num("line_width", "Line width")),
+    sel("point_shape", "Marker", MARKERS.slice(1)),
+    row(num("marker_size", "Size", { placeholder: "5" }), num("point_alpha", "Opacity", { placeholder: "0.85", hint: "0 to 1" })),
+    row(sel("point_edge", "Outline", [["auto", "Thin, background color"], ["none", "None"], ["dark", "Darker shade"], ["ink", "Text color"], ["#ffffff", "White"], ["#000000", "Black"]]), num("point_edge_width", "Outline width", { placeholder: "0.5" })),
+    sec("Lines and error bars"),
+    row(num("line_width", "Line width", { placeholder: "1.5" }), num("axis_width", "Axis line width", { placeholder: "auto" })),
+    row(sel("error", "Error bars", [["sem", "SEM"], ["sd", "SD"], ["ci95", "95% CI"], ["none", "None"]]), seg("error_dir", "Direction", [["both", "Both"], ["up", "Outward"]])),
+    row(num("cap_size", "Cap width", { placeholder: "auto", hint: "0 = no caps" }), num("error_width", "Error bar width", { placeholder: "auto" })),
+    lines && tog("line_markers", "Markers on lines"),
+    a === "timecourse" && row(num("band_alpha", "Band opacity", { placeholder: "0.18" }), num("trace_alpha", "Session line opacity", { placeholder: "0.35" })),
+    a === "correlation" && num("band_alpha", "Confidence band opacity", { placeholder: "0.18" }),
     groupPlot && sec("Significance"),
     groupPlot && sel("sig", "Show results as", [["stars", "Stars (*, **, ***)"], ["p", "Exact p-values"], ["none", "Hide"]]),
-    groupPlot && tog("show_ns", "Also mark non-significant (ns)"),
+    groupPlot && row(tog("show_ns", "Mark non-significant"), num("sig_size", "Text size", { placeholder: "auto" })),
     groupPlot && tog("show_n", "Show n under each group"),
-    sec("Colors"),
-    { type: "palettes", key: "palette" },
-    txt("custom_colors", "Your own colors", { placeholder: "#333333, #D1495B", hint: "Optional hex codes in group order. They replace palette colors one by one." }),
-    sec("Text"),
+    sec("Text and fonts"),
+    sel("font", "Font", FONT_OPTIONS),
+    row(num("font_size", "Base size (pt)", { placeholder: "10" }), num("tick_size", "Tick labels", { placeholder: "auto" })),
     txt("title", "Title"),
+    seg("title_align", "Title position", [["left", "Left"], ["center", "Center"], ["right", "Right"]]),
+    row(num("title_size", "Title size", { placeholder: "auto" }), tog("title_bold", "Bold title")),
     row(txt("xlabel", "X-axis label", { placeholder: "automatic" }), txt("ylabel", "Y-axis label", { placeholder: "automatic" })),
-    row(sel("font", "Font", [["sans", "Sans-serif (Arial)"], ["serif", "Serif (Times)"], ["mono", "Monospace"]]), num("font_size", "Font size (pt)")),
-    tog("title_bold", "Bold title"),
-    note("SVG keeps text editable in Illustrator or Inkscape. PNG and PDF use a close match of the chosen font."),
-    sec("Axes"),
-    row(num("ymin", "Y min"), num("ymax", "Y max")),
-    row(num("xrot", "X label angle (°)", { placeholder: "0" }), sel("legend", "Legend", [["best", "Best spot"], ["upper right", "Top right"], ["upper left", "Top left"], ["lower right", "Bottom right"], ["lower left", "Bottom left"], ["outside", "Outside, right"], ["none", "Hidden"]])),
-    tog("logy", "Log scale y-axis"),
-    tog("grid", "Gridlines"),
-    tog("despine", "Hide top and right axis lines"),
+    row(num("label_size", "Axis label size", { placeholder: "auto" }), tog("label_bold", "Bold axis labels")),
+    row(num("xrot", "X label angle (°)", { placeholder: "0" }), txt("panel_label", "Panel letter", { placeholder: "e.g. A" })),
+    sec("Axes and ticks"),
+    { type: "row", fields: [tog("spine_left", "Left"), tog("spine_bottom", "Bottom"), tog("spine_top", "Top"), tog("spine_right", "Right")] },
+    note("Which axis lines to draw."),
+    row(num("offset_axes", "Offset axes (pt)", { placeholder: "0", hint: "Pulls axis lines away from the data" }), tog("trim_axes", "Trim axes to ticks")),
+    seg("tick_dir", "Tick marks", [["out", "Outside"], ["in", "Inside"], ["inout", "Across"]]),
+    row(num("tick_length", "Tick length", { placeholder: "3.5" }), tog("minor_ticks", "Minor ticks")),
+    groupPlot && tog("cat_ticks", "Tick marks on the group axis"),
+    (!groupPlot || !horizontal) && row(num("ymin", "Y min"), num("ymax", "Y max")),
+    (!groupPlot || horizontal) && row(num("xmin", "X min"), num("xmax", "X max")),
+    groupPlot && horizontal && note("Horizontal plots put values on the x-axis."),
+    a === "timecourse" && row(num("ymin", "Y min"), num("ymax", "Y max")),
+    row(tog("logy", groupPlot ? "Log scale (values)" : "Log scale Y"), a === "correlation" && tog("logx", "Log scale X")),
+    row(num("ytick_step", "Y tick spacing"), num("xtick_step", "X tick spacing")),
+    num("y_decimals", "Decimal places on the value axis"),
+    sec("Grid and reference lines"),
+    seg("grid", "Gridlines", [["none", "None"], ["y", "Horizontal"], ["x", "Vertical"], ["both", "Both"]]),
+    s.grid !== "none" && row(sel("grid_style", "Grid line style", [["solid", "Solid"], ["dashed", "Dashed"], ["dotted", "Dotted"]]), num("grid_alpha", "Grid opacity", { placeholder: "0.15" })),
+    txt("ref_lines", "Reference lines", { placeholder: "y=100: Baseline; x=0", hint: "Separate with semicolons. Use y=…, x=… or y=x, with an optional label after a colon." }),
+    lines && sec("Legend"),
+    lines && sel("legend", "Position", [["best", "Best spot"], ["upper right", "Top right"], ["upper left", "Top left"], ["lower right", "Bottom right"], ["lower left", "Bottom left"], ["center right", "Middle right"], ["outside", "Outside, right"], ["outside top", "Above the plot"], ["none", "Hidden"]]),
+    lines && row(num("legend_cols", "Columns", { placeholder: "1" }), tog("legend_frame", "Frame")),
+    lines && txt("legend_title", "Legend title"),
     sec("Size and export"),
     row(num("width", "Width (in)", { hint: mm(s.width) + " mm" }), num("height", "Height (in)", { hint: mm(s.height) + " mm" })),
-    seg("theme", "Background", [["light", "Light"], ["dark", "Dark"]]),
-    row(sel("dpi", "PNG resolution", [[150, "150 dpi"], [300, "300 dpi"], [600, "600 dpi"], [1200, "1200 dpi"]]), tog("transparent", "Transparent background")),
+    a === "timecourse" && num("endpoint_width", "Endpoint plot width (in)", { placeholder: "auto" }),
+    row(sel("dpi", "PNG / TIFF resolution", [[150, "150 dpi"], [300, "300 dpi"], [600, "600 dpi"], [1200, "1200 dpi"]]), tog("transparent", "Transparent background")),
+    sec("Advanced: Python"),
+    note("For anything the menus don't cover. This is real matplotlib, running on your computer."),
+    area("custom_rc", "Matplotlib settings", { rows: 3, placeholder: "lines.solid_capstyle: round\naxes.titlepad: 14", hint: "One rcParams setting per line, as key: value." }),
+    area("custom_code", "Your Python code", { rows: 6, placeholder: "# runs after each figure is drawn\n# fig, ax, plt, np and pd are ready to use\nax.set_yticks([0, 50, 100])" }),
+    { type: "examples" },
   ];
 }
 
@@ -687,12 +1034,13 @@ function renderData() {
   const p = $("#panel-data");
   const tc = state.analysis === "timecourse";
   const act = activeDataset();
+  const unit = state.settings.timecourse.time_unit || "seconds";
   let html = `<p class="panel-intro">${tc
     ? "Add one table per recording session, for example a LabChart Data Pad export. Then give each session its group, subject and event time."
     : "Paste a table copied from Excel, Prism or LabChart, or upload a CSV, TSV or Excel file. Column names in the first row work best."}</p>
     <div class="drop" id="drop">
       <span>Drop files here, press ⌘V / Ctrl+V anywhere, or</span>
-      <span style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <span class="btn-row" style="justify-content:center">
         <button type="button" class="btn btn-primary" id="btn-add">Paste a new table</button>
         <button type="button" class="btn" id="btn-upload">Upload files</button>
       </span>
@@ -700,31 +1048,31 @@ function renderData() {
     </div>`;
 
   if (tc && state.datasets.length) {
-    html += `<div class="section"><div class="section-title">Sessions</div>
+    html += `<div class="section-static"><div class="section-title">Sessions</div>
       <div class="table-wrap" style="border:0"><table class="sessions-table">
         <thead><tr><th>Session</th><th>Group</th><th>Subject</th><th>Event</th><th>Exclude</th></tr></thead><tbody>
         ${state.datasets.map((d) => `<tr class="${d.id === state.active ? "active" : ""}">
-          <td><button type="button" data-select="${d.id}" title="${esc(d.name)}">${esc(d.name)}</button></td>
+          <td><button type="button" data-select="${d.id}" title="${esc(d.name)}">${esc(d.name)}${inspected[d.id]?.error ? ' <span class="err">!</span>' : ""}</button></td>
           <td><input type="text" id="m-${d.id}-group" data-meta="group" data-id="${d.id}" value="${esc(d.meta.group)}" placeholder="Saline" spellcheck="false"></td>
           <td><input type="text" id="m-${d.id}-subject" data-meta="subject" data-id="${d.id}" value="${esc(d.meta.subject)}" placeholder="M1" spellcheck="false"></td>
           <td><input type="text" id="m-${d.id}-event" data-meta="event" data-id="${d.id}" value="${esc(d.meta.event)}" placeholder="13:27" spellcheck="false"></td>
           <td><input type="text" id="m-${d.id}-exclude" data-meta="exclude" data-id="${d.id}" value="${esc(d.meta.exclude)}" placeholder="none" spellcheck="false"></td>
         </tr>`).join("")}
       </tbody></table></div>
-      <span class="hint">Event: when the injection or stimulus happened, as mm:ss or seconds. Exclude: time ranges to drop, separated by commas.</span>
+      <span class="hint">Event: when the injection or stimulus happened, as mm:ss, or as a plain number in the time column's units (now ${esc(unit)}). Exclude: time ranges to drop in recording time, like 8:00-8:50, separated by commas.</span>
     </div>`;
   } else if (state.datasets.length > 1) {
     html += `<div class="ds-tabs">${state.datasets.map((d) => `<button type="button" class="ds-tab" data-select="${d.id}" aria-pressed="${d.id === state.active}">${esc(d.name)}${inspected[d.id]?.error ? ' <span class="err">!</span>' : ""}</button>`).join("")}</div>`;
   }
 
   if (act) {
-    html += `<div class="section">
+    html += `<div class="section-static">
       <div class="section-title">${tc ? "Session data" : "Table"}</div>
       <div class="field"><label for="ds-name">Name</label><input type="text" id="ds-name" value="${esc(act.name)}" spellcheck="false"></div>
       <div class="field"><label for="ds-text">Data</label>
         <textarea id="ds-text" class="data-text" spellcheck="false" rows="9" placeholder="Paste your table here">${esc(act.text)}</textarea></div>
       <div id="ds-preview"></div>
-      <div><button type="button" class="btn btn-small btn-danger" id="btn-delete">Delete this table</button></div>
+      <div class="btn-row"><button type="button" class="btn btn-small" id="btn-duplicate">Duplicate</button><button type="button" class="btn btn-small btn-danger" id="btn-delete">Delete this table</button></div>
     </div>`;
   }
   p.innerHTML = html;
@@ -748,10 +1096,9 @@ function renderDataPreview() {
     box.innerHTML = `<div class="callout callout-bad">${esc(info.error)}</div>`;
     return;
   }
-  const kindName = { number: "number", time: "time", text: "text" };
   box.innerHTML = `
     <div class="parse-line"><span>${info.n_rows} rows · ${info.columns.length} columns · ${esc(info.separator)}-separated</span></div>
-    <div class="parse-line">${info.columns.map((c) => `<span class="col-chip">${esc(c.name)} <em>${kindName[c.kind]}</em></span>`).join("")}</div>
+    <div class="parse-line">${info.columns.map((c) => `<span class="col-chip">${esc(c.name)} <em>${c.kind}</em></span>`).join("")}</div>
     <div class="table-wrap" style="margin-top:8px"><table class="preview">
       <thead><tr>${info.columns.map((c) => `<th>${esc(c.name)}</th>`).join("")}</tr></thead>
       <tbody>${info.preview.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody>
@@ -761,12 +1108,13 @@ function renderDataPreview() {
 function renderSettings() {
   const s = state.settings[state.analysis];
   const intro = `<p class="panel-intro">Settings for <b>${esc(ANALYSES.find((a) => a.id === state.analysis).title.toLowerCase())}</b>. The figure updates as you change them.</p>`;
-  renderForm($("#panel-settings"), SETTINGS_SCHEMA[state.analysis](s), s, "set");
-  $("#panel-settings").insertAdjacentHTML("afterbegin", intro);
+  renderForm($("#panel-settings"), SETTINGS_SCHEMA[state.analysis](s), s, "set", intro);
 }
 
+const STYLE_OPEN = new Set(["Quick styles", "Plot type", "Groups", "Colors"]);
 function renderStyle() {
-  renderForm($("#panel-style"), styleSchema(), state.style, "sty");
+  const intro = `<p class="panel-intro">Every part of the figure can be changed. Start from a quick style, then open any section below.</p>`;
+  renderForm($("#panel-style"), styleSchema(), state.style, "sty", intro, (title) => STYLE_OPEN.has(title));
 }
 
 function renderPanels() {
@@ -783,6 +1131,7 @@ function renderAll() {
   renderPanels();
   $$(".rtab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.rtab === state.rtab)));
   ["tables", "methods", "python"].forEach((t) => ($("#rpanel-" + t).hidden = t !== state.rtab));
+  renderUndo();
 }
 
 // ============================================================================
@@ -822,13 +1171,17 @@ function renderResults(out) {
   }
   err.hidden = true;
   const r = out.ok;
+  const groupsChanged = JSON.stringify(lastResult?.group_styles || null) !== JSON.stringify(r.group_styles || null);
   lastResult = r;
+  if (groupsChanged && state.step === "style") renderStyle();
   $("#figures").innerHTML = r.figures.map((f, i) => `
     <figure class="figure-card" style="margin:0">
       <div class="figure-head"><h3>${esc(f.title)}</h3>
+        <button type="button" class="btn btn-small" data-copy-fig="${i}" title="Copy as an image to paste into slides or documents">Copy</button>
         <button type="button" class="btn btn-small" data-export="${i}" data-format="png">PNG</button>
         <button type="button" class="btn btn-small" data-export="${i}" data-format="svg">SVG</button>
         <button type="button" class="btn btn-small" data-export="${i}" data-format="pdf">PDF</button>
+        <select class="btn btn-small more-formats" data-more="${i}" aria-label="More formats"><option value="">More…</option><option value="tiff">TIFF</option><option value="jpg">JPG</option><option value="eps">EPS</option></select>
       </div>
       <div class="figure-body">${f.svg}</div>
     </figure>`).join("");
@@ -856,7 +1209,7 @@ function renderResults(out) {
     <span class="hint">A starting point for your methods section. Check it against what you actually did.</span>`;
 
   $("#rpanel-python").innerHTML = `
-    <p class="methods-text">Download a Python script that reproduces this exact analysis: your data, settings and style are built in. Anyone can rerun it with <code>pip install numpy scipy pandas matplotlib</code> and <code>python script.py</code>. Useful for reviewers, lab records and customizing beyond the menus.</p>
+    <p class="methods-text">Download a Python script that reproduces this exact analysis: your data, settings and style are built in, including any Python code you added. Anyone can rerun it with <code>pip install numpy scipy pandas matplotlib</code> and <code>python script.py</code>. Useful for reviewers, lab records and going beyond the menus.</p>
     <div><button type="button" class="btn btn-primary btn-small" id="btn-script">Download Python script</button></div>
     <pre class="code-peek">${esc(scriptPeek())}</pre>`;
   $("#results").hidden = false;
@@ -877,12 +1230,12 @@ function scriptTail() {
 
 function scriptPeek() {
   const c = state.settings[state.analysis];
-  const lines = [
+  return [
     `# ${state.name}`,
     `# Analysis: ${ANALYSES.find((a) => a.id === state.analysis).title}`,
     `# Tables: ${state.datasets.length}`,
     `#`,
-    `# ... LabLens engine (about 1,000 lines of documented Python) ...`,
+    `# ... the full LabLens engine, documented Python ...`,
     ``,
     `CONFIG = {`,
     `    "analysis": "${state.analysis}",`,
@@ -891,22 +1244,32 @@ function scriptPeek() {
     `}`,
     ``,
     `cli(CONFIG, DATASETS)  # saves PNG, PDF, SVG and CSV files to ./lablens_output`,
-  ];
-  return lines.join("\n");
+  ].join("\n");
 }
 
 async function downloadScript() {
   const src = await getEngineSource();
-  const head = `# -*- coding: utf-8 -*-\n# ${state.name}\n# Generated by LabLens on ${new Date().toISOString().slice(0, 10)}.\n#\n# Reproduces the analysis exactly: data, settings and figure style are included below.\n# Requirements: pip install numpy scipy pandas matplotlib\n# Run:          python ${slug(state.name)}.py\n# Output:       figures (PNG, PDF, SVG) and tables (CSV) in ./lablens_output\n\n`;
+  const head = `# -*- coding: utf-8 -*-\n# ${state.name}\n# Generated by LabLens on ${new Date().toISOString().slice(0, 10)}.\n#\n# Reproduces the analysis exactly: data, settings and figure style are included below.\n# Requirements: pip install numpy scipy pandas matplotlib\n# Run:          python ${slug(state.name)}.py\n# Output:       figures (PNG, PDF, SVG) and tables (CSV) in ./lablens_output\n# Web fonts such as Lato are used if installed on this computer; otherwise matplotlib's default font.\n\n`;
   download(slug(state.name) + ".py", head + src + "\n\n# ---- This analysis ----\n" + scriptTail(), "text/x-python");
 }
 
+const MIME = { png: "image/png", svg: "image/svg+xml", pdf: "application/pdf", tiff: "image/tiff", jpg: "image/jpeg", eps: "application/postscript" };
 async function exportFigure(index, format) {
   const out = await call("export", { index, format, dpi: parseInt(state.style.dpi, 10) || 300, transparent: !!state.style.transparent });
   if (out.error) return toast(out.error);
-  const types = { png: "image/png", svg: "image/svg+xml", pdf: "application/pdf" };
   const fig = lastResult?.figures[index];
-  download(`${slug(state.name)}_${fig ? fig.id : index}.${format}`, b64ToBlob(out.ok, types[format]));
+  download(`${slug(state.name)}_${fig ? fig.id : index}.${format}`, b64ToBlob(out.ok, MIME[format]));
+}
+
+function copyFigure(index) {
+  if (!navigator.clipboard || typeof ClipboardItem === "undefined") return toast("This browser can't copy images. Use PNG instead.");
+  const blob = call("export", { index, format: "png", dpi: 300, transparent: false }).then((out) => {
+    if (out.error) throw new Error(out.error);
+    return b64ToBlob(out.ok, "image/png");
+  });
+  navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+    .then(() => toast("Figure copied. Paste it into slides or a document."))
+    .catch(() => toast("Your browser blocked copying the image. Use PNG instead."));
 }
 
 function saveProject() {
@@ -917,6 +1280,10 @@ function saveProject() {
 // ============================================================================
 // Events
 // ============================================================================
+function isTyping(el) {
+  return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+}
+
 function bindEvents() {
   $(".steps").addEventListener("click", (e) => {
     const b = e.target.closest(".step");
@@ -931,10 +1298,9 @@ function bindEvents() {
 
   $("#project-name").addEventListener("input", (e) => {
     state.name = e.target.value || "Untitled analysis";
-    changed({ run: false });
+    autosave();
   });
 
-  // Analysis step
   const pa = $("#panel-analysis");
   const pickAnalysis = (id) => {
     state.analysis = id;
@@ -963,7 +1329,6 @@ function bindEvents() {
     }
   });
 
-  // Data step
   const pd = $("#panel-data");
   pd.addEventListener("click", (e) => {
     const t = e.target;
@@ -971,24 +1336,37 @@ function bindEvents() {
       newDataset(nextName());
       renderData();
       $("#ds-text")?.focus();
-      changed({ run: false });
+      autosave();
     } else if (t.closest("#btn-upload")) {
       $("#upload-file").click();
     } else if (t.closest("[data-select]")) {
       state.active = t.closest("[data-select]").dataset.select;
       renderData();
       autosave();
+    } else if (t.closest("#btn-duplicate")) {
+      const act = activeDataset();
+      if (!act) return;
+      const d = newDataset(act.name + " copy", act.text, { ...act.meta });
+      inspected[d.id] = inspected[act.id];
+      renderData();
+      changed({ clearExample: true });
     } else if (t.closest("#btn-delete")) {
       armConfirm(t.closest("#btn-delete"), "Click again to delete", () => {
-        state.datasets = state.datasets.filter((d) => d.id !== state.active);
+        const gone = state.active;
+        state.datasets = state.datasets.filter((d) => d.id !== gone);
+        delete inspected[gone];
         state.active = state.datasets[0]?.id || null;
         renderData();
+        if (state.step === "settings") renderSettings();
         changed({ clearExample: true });
       });
     }
   });
   pd.addEventListener("change", (e) => {
-    if (e.target.id === "upload-file" && e.target.files.length) addFiles(Array.from(e.target.files));
+    if (e.target.id === "upload-file" && e.target.files.length) {
+      addFiles(Array.from(e.target.files));
+      e.target.value = "";
+    }
     if (e.target.id === "ds-name") renderData();
   });
   pd.addEventListener("input", (e) => {
@@ -1000,7 +1378,7 @@ function bindEvents() {
       changed({ run: false, clearExample: true });
     } else if (t.id === "ds-name" && act) {
       act.name = t.value;
-      changed({ clearExample: false });
+      changed();
     } else if (t.dataset.meta) {
       const d = state.datasets.find((x) => x.id === t.dataset.id);
       if (d) {
@@ -1027,8 +1405,7 @@ function bindEvents() {
 
   // Paste anywhere (outside text fields) creates a new table.
   document.addEventListener("paste", (e) => {
-    const el = document.activeElement;
-    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+    if (isTyping(document.activeElement)) return;
     const text = e.clipboardData?.getData("text/plain");
     if (!text || !text.trim()) return;
     e.preventDefault();
@@ -1044,10 +1421,11 @@ function bindEvents() {
   bindForm($("#panel-settings"), () => state.settings[state.analysis], renderSettings);
   bindForm($("#panel-style"), () => state.style, renderStyle);
 
-  // Results
   $(".stage").addEventListener("click", (e) => {
     const ex = e.target.closest("[data-export]");
     if (ex) return exportFigure(+ex.dataset.export, ex.dataset.format);
+    const cf = e.target.closest("[data-copy-fig]");
+    if (cf) return copyFigure(+cf.dataset.copyFig);
     const cp = e.target.closest("[data-copy-table]");
     if (cp && lastResult) return copyText(tableTSV(lastResult.tables[+cp.dataset.copyTable]), "Table copied. Paste it into Excel or Prism.");
     const csv = e.target.closest("[data-csv]");
@@ -1065,8 +1443,16 @@ function bindEvents() {
       autosave();
     }
   });
+  $(".stage").addEventListener("change", (e) => {
+    const m = e.target.closest("[data-more]");
+    if (m && m.value) {
+      exportFigure(+m.dataset.more, m.value);
+      m.value = "";
+    }
+  });
 
-  // Project
+  $("#btn-undo").addEventListener("click", undo);
+  $("#btn-redo").addEventListener("click", redo);
   $("#btn-save").addEventListener("click", saveProject);
   $("#btn-open").addEventListener("click", () => $("#open-file").click());
   $("#open-file").addEventListener("change", async (e) => {
@@ -1077,8 +1463,12 @@ function bindEvents() {
       if (!adopt(JSON.parse(await f.text()))) throw new Error();
       Object.keys(inspected).forEach((k) => delete inspected[k]);
       await Promise.all(state.datasets.map((d) => inspectNow(d.id)));
+      history.past = [];
+      history.future = [];
+      history.last = snapshot();
       renderAll();
-      changed();
+      autosave();
+      runNow();
       toast("Opened " + f.name);
     } catch (err) {
       toast("That file isn't a LabLens project.");
@@ -1088,17 +1478,25 @@ function bindEvents() {
     armConfirm(e.currentTarget, "Discard current?", () => {
       const keepStyle = state.style;
       state = freshState();
-      state.style = keepStyle;
-      state.step = "analysis";
+      state.style = { ...keepStyle, groups: {} };
+      Object.keys(inspected).forEach((k) => delete inspected[k]);
       renderAll();
       renderEmptyStage();
       changed({ run: false });
     });
   });
   document.addEventListener("keydown", (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === "s") {
       e.preventDefault();
       saveProject();
+    } else if (mod && e.key.toLowerCase() === "z" && !isTyping(document.activeElement)) {
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+    } else if (mod && e.key.toLowerCase() === "y" && !isTyping(document.activeElement)) {
+      e.preventDefault();
+      redo();
     }
   });
 }
@@ -1111,4 +1509,12 @@ if (!restore()) {
   state.analysis = "timecourse";
   queuedExample = "timecourse";
 }
+history.last = snapshot();
 renderAll();
+if (servedFromDisk) {
+  setStatus("failed", "Needs the launcher");
+  $(".spinner").hidden = true;
+  $("#loading h2").textContent = "Start LabLens with the launcher";
+  $("#loading-text").textContent = "Browsers don't let Python run on pages opened straight from a file.";
+  $("#loading .fine").innerHTML = "Close this tab and double-click <b>Start LabLens.command</b> (Mac) or <b>Start LabLens (Windows).bat</b> in the LabLens folder. Or use LabLens online at <a href=\"https://frizzell-5.github.io/LabLens/app.html\">frizzell-5.github.io/LabLens</a>.";
+}

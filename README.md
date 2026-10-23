@@ -2,6 +2,8 @@
 
 **Analyze lab data and make publication-quality figures without writing code.**
 
+**[Open LabLens](https://frizzell-5.github.io/LabLens/app.html)** · [Website & guide](https://frizzell-5.github.io/LabLens/) · [Download](https://github.com/Frizzell-5/LabLens/releases/latest/download/LabLens.zip)
+
 LabLens is a browser-based analysis tool for researchers. You paste or upload your data, choose an analysis, adjust the settings and figure style in plain menus, and get statistics, figures and a methods paragraph. Python (NumPy, SciPy, pandas, matplotlib) does the work behind the scenes, right inside the browser, so there is nothing to install and your data never leaves your computer.
 
 ![LabLens analyzing a time course aligned to an injection](docs/screenshot.png)
@@ -9,7 +11,8 @@ LabLens is a browser-based analysis tool for researchers. You paste or upload yo
 ## Why LabLens
 
 - **No code.** Every analysis decision is a menu, toggle or number field. The figure updates as you change them.
-- **Figures you can actually customize.** Plot types, colors, fonts, sizes, error bars and significance marks are all adjustable, with presets for journals, posters and slides.
+- **Complete control over the figure.** Ten plot types, vertical or horizontal; per-group colors, markers, hatch patterns and line styles; any matplotlib colormap; twelve fonts; every axis line, tick and gridline; reference lines, panel letters and legends. Twelve quick styles to start from, your own saved styles, and shareable style files for a lab house style.
+- **Python when you want it.** An optional box runs your own matplotlib code on each figure, and raw rcParams settings take one line each.
 - **Built for real lab data.** It reads tables pasted from LabChart Data Pads, Excel and Prism, including multi-row headers, clock times (`13:27`) and European decimal commas.
 - **Private by design.** All computation runs locally in your browser through [Pyodide](https://pyodide.org). Nothing is uploaded to a server.
 - **Reproducible.** Every analysis can be downloaded as a standalone Python script that recreates the same statistics and figures, for lab records, reviewers or further customization.
@@ -25,7 +28,7 @@ LabLens is a browser-based analysis tool for researchers. You paste or upload yo
 
 ## Output
 
-- Figures as **PNG** (up to 1200 dpi), **SVG** (editable text for Illustrator or Inkscape) and **PDF**
+- Figures as **PNG** or **TIFF** (up to 1200 dpi), **SVG** (editable text for Illustrator or Inkscape), **PDF**, **EPS** and **JPG**, or copied straight to the clipboard
 - Results tables that copy straight into Excel or Prism, or download as CSV
 - An auto-generated **methods paragraph** naming the tests, corrections and software versions used
 - A **Python script** that reproduces the full analysis
@@ -35,7 +38,11 @@ LabLens is a browser-based analysis tool for researchers. You paste or upload yo
 
 LabLens is a static web app. It needs to be served over HTTP (not opened as a file) because the Python engine runs in a web worker.
 
-**macOS:** double-click `Start LabLens.command`.
+**Online:** open <https://frizzell-5.github.io/LabLens/app.html>. Nothing to install.
+
+**macOS:** download, unzip and double-click `Start LabLens.command`.
+
+**Windows:** download, unzip and double-click `Start LabLens (Windows).bat` (needs [Python 3](https://www.python.org/downloads/)).
 
 **Any system:**
 
@@ -45,18 +52,19 @@ cd LabLens
 python3 -m http.server 8765
 ```
 
-Then open <http://127.0.0.1:8765>. The first visit downloads the Python runtime and scientific libraries (about 30 MB); the browser caches them for later visits.
+Then open <http://127.0.0.1:8765/app.html>. The first visit downloads the Python runtime and scientific libraries (about 30 MB); the browser caches them for later visits.
 
 To try it without your own data, pick an analysis and press **Try example**.
 
 ## Deployment
 
-There is no build step and no backend. Upload `index.html`, `app.css`, `app.js`, `worker.js` and the `engine/` folder to any static host, such as Cloudflare Pages, GitHub Pages or Netlify.
+There is no build step and no backend. The repository is served as-is by GitHub Pages: `index.html` is the website and `app.html` is the app. Any static host works.
 
 ## Project structure
 
 ```
-index.html          Page layout
+index.html          Website: overview, gallery, user guide, FAQ
+app.html            The app
 app.css             Styles (light and dark themes)
 app.js              Interface: steps, settings forms, results, exports
 worker.js           Loads Pyodide and the engine off the main thread
@@ -82,12 +90,13 @@ python3 -m venv .venv && .venv/bin/pip install numpy scipy pandas matplotlib ope
 
 - Multi-panel figure layouts (A/B/C/D) for journal submission
 - Plain-language figure editing ("make the drug group red, hide the legend")
+- Axis breaks and inset plots
 - Survival curves, two-way ANOVA, normalization tools
 - Direct import of LabChart `.adicht` files
 
 ## Status
 
-LabLens is in early development (v0.1). Results should be checked against your own understanding of the statistics before publication; the generated methods text is a starting point, not a substitute for describing what you did.
+LabLens is in early development (v0.2). Results should be checked against your own understanding of the statistics before publication; the generated methods text is a starting point, not a substitute for describing what you did.
 
 ## Author
 

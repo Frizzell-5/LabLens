@@ -136,14 +136,45 @@ h2, h3 { text-wrap: balance; margin: 0; }
 .choice-foot { grid-column: 2; display: flex; gap: 8px; margin-top: 8px; }
 
 /* ---------- Forms ---------- */
-.section { display: flex; flex-direction: column; gap: 10px; }
-.section + .section { border-top: 1px solid var(--line); padding-top: 16px; }
+.section-static { display: flex; flex-direction: column; gap: 10px; }
 .section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+details.section { border-top: 1px solid var(--line); }
+details.section > summary { list-style: none; cursor: pointer; padding: 13px 0; display: flex; align-items: center; justify-content: space-between; }
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid var(--faint); border-bottom: 1.5px solid var(--faint); transform: rotate(45deg); margin-right: 4px; transition: transform 0.15s; }
+details.section[open] > summary::after { transform: rotate(-135deg); }
+details.section > summary:hover { color: var(--ink); }
+.section-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 16px; }
+.panel { gap: 0; }
+.panel > .panel-intro { margin-bottom: 12px; }
+.panel-data-gap > * + * { margin-top: 16px; }
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field > label, .field-label { font-size: 12.5px; font-weight: 500; color: var(--ink); }
 .hint { display: block; font-size: 11.5px; color: var(--faint); }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.row-4 { grid-template-columns: repeat(4, 1fr); }
+.row-4 .toggle { flex-direction: column-reverse; align-items: flex-start; gap: 4px; font-size: 12px; }
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+textarea.code { font: 12px/1.5 var(--font-data); resize: vertical; tab-size: 4; white-space: pre; overflow-x: auto; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 5px; }
+.chips button { border: 1px solid var(--line-strong); background: var(--panel); border-radius: 6px; padding: 6px 4px; font-size: 12px; cursor: pointer; color: var(--muted); }
+.chips button:hover { border-color: var(--accent); color: var(--ink); }
+.chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.color-field { display: flex; align-items: center; gap: 8px; }
+.color-field input[type="color"], .group-row input[type="color"] { width: 34px; height: 30px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); cursor: pointer; flex: none; }
+.color-val { font: 12px var(--font-data); color: var(--muted); }
+.groups { display: flex; flex-direction: column; gap: 8px; }
+.group-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
+.group-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.group-opts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+.group-opts select { padding: 4px 5px; font-size: 11.5px; }
+.preset.mine { display: flex; padding: 0; position: relative; }
+.preset.mine > button:first-child { flex: 1; text-align: left; background: none; border: 0; padding: 8px; cursor: pointer; color: inherit; }
+.preset.mine .x { background: none; border: 0; color: var(--faint); cursor: pointer; padding: 0 8px; font-size: 16px; }
+.preset.mine .x:hover { color: var(--bad); }
+.save-style { display: flex; gap: 6px; }
+select.more-formats { width: auto; padding: 3px 6px; }
 input[type="text"], input[type="number"], select, textarea {
   width: 100%; min-width: 0; border: 1px solid var(--line-strong); background: var(--panel); border-radius: 6px;
   padding: 6px 8px; font-size: 13px;
@@ -275,3 +306,6 @@ textarea.data-text { font: 12px/1.5 var(--font-data); white-space: pre; overflow
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.brand-name { text-decoration: none; }
+#panel-analysis, #panel-data { gap: 16px; }
+#panel-analysis > .panel-intro, #panel-data > .panel-intro { margin-bottom: 0; }
