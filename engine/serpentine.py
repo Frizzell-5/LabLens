@@ -1,4 +1,4 @@
-"""LabLens analysis engine.
+"""Serpentine analysis engine.
 
 Runs inside the browser (Pyodide web worker) and as an ordinary Python script.
 Everything goes through `api(cmd, args_json)`, which returns a JSON string.
@@ -30,7 +30,7 @@ from scipy.optimize import curve_fit  # noqa: E402
 
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
-ENGINE_VERSION = "0.2.0"
+ENGINE_VERSION = "0.2.1"
 
 
 class UserError(Exception):
@@ -285,7 +285,7 @@ def _holm(ps):
 # ----------------------------------------------------------------------------
 
 PALETTES = {
-    "lablens": ["#2F5D8A", "#D1495B", "#E9A23B", "#00798C", "#6B4E9B", "#7A7A7A", "#3E8E41", "#B5651D"],
+    "serpentine": ["#2F5D8A", "#D1495B", "#E9A23B", "#00798C", "#6B4E9B", "#7A7A7A", "#3E8E41", "#B5651D"],
     "okabe": ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7", "#56B4E9", "#F0E442", "#000000"],
     "tol": ["#4477AA", "#EE6677", "#228833", "#CCBB44", "#66CCEE", "#AA3377", "#BBBBBB"],
     "muted": ["#4C72B0", "#DD8452", "#55A868", "#C44E52", "#8172B3", "#937860", "#DA8BC3", "#8C8C8C"],
@@ -321,7 +321,7 @@ LOOK_DEFAULTS = {
     "width": 4.0, "height": 3.4, "theme": "light", "bg_color": "", "axes_color": "", "ink_color": "",
     "font": "sans", "font_size": 10, "title_size": "", "label_size": "", "tick_size": "",
     "title_bold": True, "label_bold": False, "title_align": "center",
-    "palette": "lablens", "palette_reverse": False,
+    "palette": "serpentine", "palette_reverse": False,
     "plot_kind": "bar", "orientation": "vertical", "bar_width": 0.62, "jitter": 0.12,
     "fill": "light", "fill_alpha": 0.25, "edge_width": "",
     "show_points": True, "point_shape": "o", "marker_size": 5.0, "point_alpha": 0.85,
@@ -426,7 +426,9 @@ def _style(style):
 
 def _colors(s, n):
     n = max(n, 1)
-    pal = str(s.get("palette") or "lablens")
+    pal = str(s.get("palette") or "serpentine")
+    if pal == "lablens":  # name before the rename
+        pal = "serpentine"
     if pal.startswith("cmap:"):
         name = pal[5:]
         try:
@@ -439,7 +441,7 @@ def _colors(s, n):
         else:
             base = [to_hex(cmap(x)) for x in (np.linspace(0.12, 0.88, n) if n > 1 else [0.5])]
     else:
-        src = PALETTES.get(pal, PALETTES["lablens"])
+        src = PALETTES.get(pal, PALETTES["serpentine"])
         base = [src[i % len(src)] for i in range(n)]
     if s.get("palette_reverse"):
         base = base[::-1]
@@ -1197,7 +1199,7 @@ def _methods(s, res, extra=""):
 
 
 def _software_line():
-    return ("Analyses were performed in LabLens %s (Python %d.%d, NumPy %s, SciPy %s, pandas %s, matplotlib %s)."
+    return ("Analyses were performed in Serpentine %s (Python %d.%d, NumPy %s, SciPy %s, pandas %s, matplotlib %s)."
             % (ENGINE_VERSION, sys.version_info[0], sys.version_info[1], np.__version__, scipy.__version__,
                pd.__version__, matplotlib.__version__))
 
@@ -2005,7 +2007,7 @@ def api(cmd, args_json):
         return json.dumps({"error": "Something went wrong: %s" % e, "trace": traceback.format_exc()})
 
 
-def cli(config_json, datasets_json, out_dir="lablens_output"):
+def cli(config_json, datasets_json, out_dir="serpentine_output"):
     """Used by exported scripts: re-runs the analysis and saves figures and tables."""
     import os
     os.makedirs(out_dir, exist_ok=True)

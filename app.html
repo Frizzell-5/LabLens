@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>LabLens App</title>
+<title>Serpentine App</title>
 <meta name="description" content="Analyze lab data and make publication-quality figures without writing code. Python runs in your browser; your data never leaves your computer.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <!-- Figure fonts, so previews match PNG/PDF exports -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Fira+Sans:wght@400;700&family=Barlow:wght@400;700&family=Poppins:wght@400;700&family=PT+Serif:wght@400;700&family=Crimson+Text:wght@400;700&family=Courier+Prime:wght@400;700&family=Space+Mono:wght@400;700&family=Comic+Neue:wght@400;700&display=swap">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='14' cy='14' r='9' fill='none' stroke='%232456C7' stroke-width='3'/%3E%3Cpath d='M21 21l7 7' stroke='%232456C7' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M9 17l3-4 3 2 3-5' fill='none' stroke='%232456C7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M21.5 6.5c-5.5 0-11 1.6-11 5.4s11 3.8 11 8.2-5.5 5.4-11 5.4' fill='none' stroke='%232456C7' stroke-width='3.2' stroke-linecap='round'/%3E%3Ccircle cx='23' cy='6.5' r='2.9' fill='%232456C7'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M21 21l7 7" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M9 17l3-4 3 2 3-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <a class="brand-name" href="./" title="LabLens home">LabLens</a>
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M21.5 6.5c-5.5 0-11 1.6-11 5.4s11 3.8 11 8.2-5.5 5.4-11 5.4" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><circle cx="23" cy="6.5" r="2.9" fill="currentColor"/></svg>
+    <a class="brand-name" href="./" title="Serpentine home">Serpentine</a>
   </div>
   <input id="project-name" class="project-name" type="text" aria-label="Project name" spellcheck="false">
   <span id="example-badge" class="badge badge-example" hidden>Example data</span>
@@ -28,7 +28,7 @@
     <button id="btn-new" class="btn btn-ghost" type="button">New</button>
     <button id="btn-open" class="btn btn-ghost" type="button">Open</button>
     <button id="btn-save" class="btn btn-ghost" type="button" title="Save project (⌘S)">Save</button>
-    <input id="open-file" type="file" accept=".json,.lablens" hidden>
+    <input id="open-file" type="file" accept=".json" hidden>
   </div>
 </header>
 

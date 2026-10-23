@@ -7,11 +7,21 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const uid = () => Math.random().toString(36).slice(2, 10);
-const slug = (s) => (String(s || "lablens").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lablens");
+const slug = (s) => (String(s || "serpentine").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "serpentine");
 const clone = (o) => JSON.parse(JSON.stringify(o));
-const STORE_KEY = "lablens.project.v1";
-const STYLES_KEY = "lablens.styles.v1";
-const SECTIONS_KEY = "lablens.sections.v1";
+const STORE_KEY = "serpentine.project.v1";
+const STYLES_KEY = "serpentine.styles.v1";
+const SECTIONS_KEY = "serpentine.sections.v1";
+const APP_NAMES = ["Serpentine", "LabLens"]; // the app was called LabLens before v0.2.1
+
+// Carry browser-saved work over from the old name, once.
+try {
+  for (const k of ["project", "styles", "sections"]) {
+    const oldKey = "lablens." + k + ".v1";
+    const newKey = "serpentine." + k + ".v1";
+    if (localStorage.getItem(newKey) === null && localStorage.getItem(oldKey) !== null) localStorage.setItem(newKey, localStorage.getItem(oldKey));
+  }
+} catch (e) { /* storage unavailable */ }
 
 function store(key, value) {
   try {
@@ -113,7 +123,7 @@ const DEFAULT_SETTINGS = {
 const LOOK_DEFAULTS = {
   width: 4, height: 3.4, theme: "light", bg_color: "", axes_color: "", ink_color: "",
   font: "sans", font_size: 10, title_size: "", label_size: "", tick_size: "", title_bold: true, label_bold: false, title_align: "center",
-  palette: "lablens", palette_reverse: false,
+  palette: "serpentine", palette_reverse: false,
   bar_width: 0.62, jitter: 0.12, fill: "light", fill_alpha: 0.25, edge_width: "",
   show_points: true, point_shape: "o", marker_size: 5, point_alpha: 0.85, point_edge: "auto", point_edge_width: 0.5,
   line_width: 1.5, axis_width: "", error: "sem", error_dir: "both", cap_size: "", error_width: "",
@@ -131,7 +141,7 @@ const DEFAULT_STYLE = {
 };
 
 const PALETTES = [
-  ["lablens", "LabLens", ["#2F5D8A", "#D1495B", "#E9A23B", "#00798C", "#6B4E9B", "#7A7A7A"]],
+  ["serpentine", "Serpentine", ["#2F5D8A", "#D1495B", "#E9A23B", "#00798C", "#6B4E9B", "#7A7A7A"]],
   ["okabe", "Okabe-Ito · colorblind-safe", ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7", "#56B4E9"]],
   ["tol", "Tol bright · colorblind-safe", ["#4477AA", "#EE6677", "#228833", "#CCBB44", "#66CCEE", "#AA3377"]],
   ["muted", "Muted", ["#4C72B0", "#DD8452", "#55A868", "#C44E52", "#8172B3", "#937860"]],
@@ -194,7 +204,7 @@ const ANALYSES = [
 
 function freshState() {
   return {
-    app: "LabLens",
+    app: "Serpentine",
     version: 2,
     name: "Untitled analysis",
     analysis: "compare",
@@ -366,7 +376,7 @@ function restore() {
 }
 
 function adopt(obj) {
-  if (!obj || obj.app !== "LabLens" || !Array.isArray(obj.datasets)) return false;
+  if (!obj || !APP_NAMES.includes(obj.app) || !Array.isArray(obj.datasets)) return false;
   const base = freshState();
   const style = { ...DEFAULT_STYLE, ...(obj.style || {}) };
   // Projects from v0.1 used one "despine" switch and a true/false grid.
@@ -374,11 +384,13 @@ function adopt(obj) {
     style.spine_top = style.spine_right = !obj.style.despine;
   }
   if (typeof style.grid === "boolean") style.grid = style.grid ? "both" : "none";
+  if (style.palette === "lablens") style.palette = "serpentine";
   delete style.despine;
   if (!style.groups || typeof style.groups !== "object") style.groups = {};
   state = {
     ...base,
     ...obj,
+    app: "Serpentine",
     version: 2,
     settings: Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map((k) => [k, { ...DEFAULT_SETTINGS[k], ...(obj.settings?.[k] || {}) }])),
     style,
@@ -746,7 +758,7 @@ function bindForm(panel, getObj, rerender) {
       return rerender();
     }
     if (t.closest("#btn-save-style")) return saveMyStyle();
-    if (t.closest("#btn-export-style")) return download(slug(state.name) + "-style.json", JSON.stringify({ app: "LabLens", kind: "style", style: lookOf(state.style) }, null, 1), "application/json");
+    if (t.closest("#btn-export-style")) return download(slug(state.name) + "-style.json", JSON.stringify({ app: "Serpentine", kind: "style", style: lookOf(state.style) }, null, 1), "application/json");
     if (t.closest("#btn-import-style")) return $("#import-style").click();
     if (t.closest("#btn-reset-style")) {
       return armConfirm(t.closest("#btn-reset-style"), "Click again to reset", () => {
@@ -770,10 +782,10 @@ function bindForm(panel, getObj, rerender) {
     e.target.value = "";
     try {
       const obj = JSON.parse(await f.text());
-      if (obj.app !== "LabLens" || obj.kind !== "style" || typeof obj.style !== "object") throw new Error();
+      if (!APP_NAMES.includes(obj.app) || obj.kind !== "style" || typeof obj.style !== "object") throw new Error();
       applyLook(obj.style, f.name.replace(/\.json$/, ""), true);
     } catch (err) {
-      toast("That file isn't a LabLens style file.");
+      toast("That file isn't a Serpentine style file.");
     }
   });
 }
@@ -1027,7 +1039,7 @@ function renderAnalysis() {
           <div class="choice-foot"><button type="button" class="btn btn-small" data-example="${a.id}">Try example</button></div>
         </div>`).join("")}
     </div>
-    <p class="fine">Your data stays on this computer. LabLens runs Python inside your browser, and nothing is uploaded.</p>`;
+    <p class="fine">Your data stays on this computer. Serpentine runs Python inside your browser, and nothing is uploaded.</p>`;
 }
 
 function renderData() {
@@ -1219,13 +1231,13 @@ function renderResults(out) {
 // Exports
 // ============================================================================
 async function getEngineSource() {
-  if (!engineSource) engineSource = await (await fetch("engine/lablens.py")).text();
+  if (!engineSource) engineSource = await (await fetch("engine/serpentine.py")).text();
   return engineSource;
 }
 
 function scriptTail() {
   const a = runArgs();
-  return `CONFIG_JSON = ${JSON.stringify(JSON.stringify(a.config, null, 1))}\nDATASETS_JSON = ${JSON.stringify(JSON.stringify(a.datasets))}\n\nif __name__ == "__main__":\n    cli(CONFIG_JSON, DATASETS_JSON, out_dir="lablens_output")\n`;
+  return `CONFIG_JSON = ${JSON.stringify(JSON.stringify(a.config, null, 1))}\nDATASETS_JSON = ${JSON.stringify(JSON.stringify(a.datasets))}\n\nif __name__ == "__main__":\n    cli(CONFIG_JSON, DATASETS_JSON, out_dir="serpentine_output")\n`;
 }
 
 function scriptPeek() {
@@ -1235,7 +1247,7 @@ function scriptPeek() {
     `# Analysis: ${ANALYSES.find((a) => a.id === state.analysis).title}`,
     `# Tables: ${state.datasets.length}`,
     `#`,
-    `# ... the full LabLens engine, documented Python ...`,
+    `# ... the full Serpentine engine, documented Python ...`,
     ``,
     `CONFIG = {`,
     `    "analysis": "${state.analysis}",`,
@@ -1243,13 +1255,13 @@ function scriptPeek() {
     `    ...`,
     `}`,
     ``,
-    `cli(CONFIG, DATASETS)  # saves PNG, PDF, SVG and CSV files to ./lablens_output`,
+    `cli(CONFIG, DATASETS)  # saves PNG, PDF, SVG and CSV files to ./serpentine_output`,
   ].join("\n");
 }
 
 async function downloadScript() {
   const src = await getEngineSource();
-  const head = `# -*- coding: utf-8 -*-\n# ${state.name}\n# Generated by LabLens on ${new Date().toISOString().slice(0, 10)}.\n#\n# Reproduces the analysis exactly: data, settings and figure style are included below.\n# Requirements: pip install numpy scipy pandas matplotlib\n# Run:          python ${slug(state.name)}.py\n# Output:       figures (PNG, PDF, SVG) and tables (CSV) in ./lablens_output\n# Web fonts such as Lato are used if installed on this computer; otherwise matplotlib's default font.\n\n`;
+  const head = `# -*- coding: utf-8 -*-\n# ${state.name}\n# Generated by Serpentine on ${new Date().toISOString().slice(0, 10)}.\n#\n# Reproduces the analysis exactly: data, settings and figure style are included below.\n# Requirements: pip install numpy scipy pandas matplotlib\n# Run:          python ${slug(state.name)}.py\n# Output:       figures (PNG, PDF, SVG) and tables (CSV) in ./serpentine_output\n# Web fonts such as Lato are used if installed on this computer; otherwise matplotlib's default font.\n\n`;
   download(slug(state.name) + ".py", head + src + "\n\n# ---- This analysis ----\n" + scriptTail(), "text/x-python");
 }
 
@@ -1273,7 +1285,7 @@ function copyFigure(index) {
 }
 
 function saveProject() {
-  download(slug(state.name) + ".lablens.json", JSON.stringify(state, null, 1), "application/json");
+  download(slug(state.name) + ".serpentine.json", JSON.stringify(state, null, 1), "application/json");
   toast("Project saved to your downloads");
 }
 
@@ -1471,7 +1483,7 @@ function bindEvents() {
       runNow();
       toast("Opened " + f.name);
     } catch (err) {
-      toast("That file isn't a LabLens project.");
+      toast("That file isn't a Serpentine project.");
     }
   });
   $("#btn-new").addEventListener("click", (e) => {
@@ -1514,7 +1526,7 @@ renderAll();
 if (servedFromDisk) {
   setStatus("failed", "Needs the launcher");
   $(".spinner").hidden = true;
-  $("#loading h2").textContent = "Start LabLens with the launcher";
+  $("#loading h2").textContent = "Start Serpentine with the launcher";
   $("#loading-text").textContent = "Browsers don't let Python run on pages opened straight from a file.";
-  $("#loading .fine").innerHTML = "Close this tab and double-click <b>Start LabLens.command</b> (Mac) or <b>Start LabLens (Windows).bat</b> in the LabLens folder. Or use LabLens online at <a href=\"https://frizzell-5.github.io/LabLens/app.html\">frizzell-5.github.io/LabLens</a>.";
+  $("#loading .fine").innerHTML = "Close this tab and double-click <b>Start Serpentine.command</b> (Mac) or <b>Start Serpentine (Windows).bat</b> in the Serpentine folder. Or use Serpentine online at <a href=\"https://frizzell-5.github.io/Serpentine/app.html\">frizzell-5.github.io/Serpentine</a>.";
 }

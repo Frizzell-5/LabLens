@@ -31,12 +31,12 @@ const ready = (async () => {
   py = await loadPyodide({ indexURL: PYODIDE_URL });
   status("Loading NumPy, SciPy, pandas and matplotlib");
   await py.loadPackage(["numpy", "pandas", "scipy", "matplotlib"]);
-  const res = await fetch("engine/lablens.py", { cache: "no-cache" });
+  const res = await fetch("engine/serpentine.py", { cache: "no-cache" });
   if (!res.ok) throw new Error("couldn't load the analysis engine (" + res.status + ")");
-  py.FS.writeFile("/home/pyodide/lablens.py", await res.text());
+  py.FS.writeFile("/home/pyodide/serpentine.py", await res.text());
   py.FS.mkdirTree("/home/pyodide/fonts");
   py.runPython("import sys; sys.path.insert(0, '/home/pyodide')");
-  api = py.pyimport("lablens").api;
+  api = py.pyimport("serpentine").api;
   const versions = JSON.parse(api("versions", "{}")).ok;
   postMessage({ type: "ready", versions });
 })().catch((err) => {

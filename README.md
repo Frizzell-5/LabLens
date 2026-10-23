@@ -1,14 +1,14 @@
-# LabLens
+# Serpentine
 
 **Analyze lab data and make publication-quality figures without writing code.**
 
-**[Open LabLens](https://frizzell-5.github.io/LabLens/app.html)** · [Website & guide](https://frizzell-5.github.io/LabLens/) · [Download](https://github.com/Frizzell-5/LabLens/releases/latest/download/LabLens.zip)
+**[Open Serpentine](https://frizzell-5.github.io/Serpentine/app.html)** · [Website & guide](https://frizzell-5.github.io/Serpentine/) · [Download](https://github.com/Frizzell-5/Serpentine/releases/latest/download/Serpentine.zip)
 
-LabLens is a browser-based analysis tool for researchers. You paste or upload your data, choose an analysis, adjust the settings and figure style in plain menus, and get statistics, figures and a methods paragraph. Python (NumPy, SciPy, pandas, matplotlib) does the work behind the scenes, right inside the browser, so there is nothing to install and your data never leaves your computer.
+Serpentine is a browser-based analysis tool for researchers. You paste or upload your data, choose an analysis, adjust the settings and figure style in plain menus, and get statistics, figures and a methods paragraph. Python (NumPy, SciPy, pandas, matplotlib) does the work behind the scenes, right inside the browser, so there is nothing to install and your data never leaves your computer.
 
-![LabLens analyzing a time course aligned to an injection](docs/screenshot.png)
+![Serpentine analyzing a time course aligned to an injection](docs/screenshot.png)
 
-## Why LabLens
+## Why Serpentine
 
 - **No code.** Every analysis decision is a menu, toggle or number field. The figure updates as you change them.
 - **Complete control over the figure.** Ten plot types, vertical or horizontal; per-group colors, markers, hatch patterns and line styles; any matplotlib colormap; twelve fonts; every axis line, tick and gridline; reference lines, panel letters and legends. Twelve quick styles to start from, your own saved styles, and shareable style files for a lab house style.
@@ -32,23 +32,23 @@ LabLens is a browser-based analysis tool for researchers. You paste or upload yo
 - Results tables that copy straight into Excel or Prism, or download as CSV
 - An auto-generated **methods paragraph** naming the tests, corrections and software versions used
 - A **Python script** that reproduces the full analysis
-- Project files (`.lablens.json`) to save and reopen your work
+- Project files (`.serpentine.json`) to save and reopen your work
 
 ## Getting started
 
-LabLens is a static web app. It needs to be served over HTTP (not opened as a file) because the Python engine runs in a web worker.
+Serpentine is a static web app. It needs to be served over HTTP (not opened as a file) because the Python engine runs in a web worker.
 
-**Online:** open <https://frizzell-5.github.io/LabLens/app.html>. Nothing to install.
+**Online:** open <https://frizzell-5.github.io/Serpentine/app.html>. Nothing to install.
 
-**macOS:** download, unzip and double-click `Start LabLens.command`.
+**macOS:** download, unzip and double-click `Start Serpentine.command`.
 
-**Windows:** download, unzip and double-click `Start LabLens (Windows).bat` (needs [Python 3](https://www.python.org/downloads/)).
+**Windows:** download, unzip and double-click `Start Serpentine (Windows).bat` (needs [Python 3](https://www.python.org/downloads/)).
 
 **Any system:**
 
 ```bash
-git clone https://github.com/Frizzell-5/LabLens.git
-cd LabLens
+git clone https://github.com/Frizzell-5/Serpentine.git
+cd Serpentine
 python3 -m http.server 8765
 ```
 
@@ -68,7 +68,7 @@ app.html            The app
 app.css             Styles (light and dark themes)
 app.js              Interface: steps, settings forms, results, exports
 worker.js           Loads Pyodide and the engine off the main thread
-engine/lablens.py   Analysis engine: parsing, statistics, figures, exports
+engine/serpentine.py   Analysis engine: parsing, statistics, figures, exports
 docs/               Screenshots
 ```
 
@@ -76,14 +76,14 @@ The engine has a single entry point, `api(cmd, args_json)`, and also runs as ord
 
 ## Adding an analysis
 
-1. In `engine/lablens.py`, write `analysis_<name>(datasets, settings, style)` returning figures, tables, a summary, notes and methods text, and register it in `ANALYSES`. Add sample data to `example()`.
+1. In `engine/serpentine.py`, write `analysis_<name>(datasets, settings, style)` returning figures, tables, a summary, notes and methods text, and register it in `ANALYSES`. Add sample data to `example()`.
 2. In `app.js`, add an entry to `ANALYSES`, its defaults to `DEFAULT_SETTINGS`, and its form to `SETTINGS_SCHEMA`.
 
 To test the engine outside the browser:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install numpy scipy pandas matplotlib openpyxl
-.venv/bin/python -c "import sys; sys.path.insert(0, 'engine'); import lablens; print(lablens.api('example', '{\"kind\": \"compare\"}')[:200])"
+.venv/bin/python -c "import sys; sys.path.insert(0, 'engine'); import serpentine; print(serpentine.api('example', '{\"kind\": \"compare\"}')[:200])"
 ```
 
 ## Roadmap
@@ -96,7 +96,7 @@ python3 -m venv .venv && .venv/bin/pip install numpy scipy pandas matplotlib ope
 
 ## Status
 
-LabLens is in early development (v0.2). Results should be checked against your own understanding of the statistics before publication; the generated methods text is a starting point, not a substitute for describing what you did.
+Serpentine is in early development (v0.2). Results should be checked against your own understanding of the statistics before publication; the generated methods text is a starting point, not a substitute for describing what you did.
 
 ## Author
 
