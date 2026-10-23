@@ -12,6 +12,7 @@ Serpentine is a browser-based analysis tool for researchers. You paste or upload
 
 - **No code.** Every analysis decision is a menu, toggle or number field. The figure updates as you change them.
 - **Complete control over the figure.** Ten plot types, vertical or horizontal; per-group colors, markers, hatch patterns and line styles; any matplotlib colormap; twelve fonts; every axis line, tick and gridline; reference lines, panel letters and legends. Twelve quick styles to start from, your own saved styles, and shareable style files for a lab house style.
+- **Plain-English commands.** Type “remove gridlines and make Saline navy” into the command bar and the figure changes. Runs locally: instant, free and private.
 - **Python when you want it.** An optional box runs your own matplotlib code on each figure, and raw rcParams settings take one line each.
 - **Built for real lab data.** It reads tables pasted from LabChart Data Pads, Excel and Prism, including multi-row headers, clock times (`13:27`) and European decimal commas.
 - **Private by design.** All computation runs locally in your browser through [Pyodide](https://pyodide.org). Nothing is uploaded to a server.
@@ -67,6 +68,7 @@ index.html          Website: overview, gallery, user guide, FAQ
 app.html            The app
 app.css             Styles (light and dark themes)
 app.js              Interface: steps, settings forms, results, exports
+commands.js         Plain-English command reader ("remove gridlines" → settings)
 worker.js           Loads Pyodide and the engine off the main thread
 engine/serpentine.py   Analysis engine: parsing, statistics, figures, exports
 docs/               Screenshots
@@ -96,7 +98,7 @@ python3 -m venv .venv && .venv/bin/pip install numpy scipy pandas matplotlib ope
 
 ## Status
 
-Serpentine is in early development (v0.2). Results should be checked against your own understanding of the statistics before publication; the generated methods text is a starting point, not a substitute for describing what you did.
+Serpentine is in early development (v0.3). Results should be checked against your own understanding of the statistics before publication; the generated methods text is a starting point, not a substitute for describing what you did.
 
 ## Author
 

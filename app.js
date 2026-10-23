@@ -1013,7 +1013,7 @@ function styleSchema() {
     a === "timecourse" && num("endpoint_width", "Endpoint plot width (in)", { placeholder: "auto" }),
     row(sel("dpi", "PNG / TIFF resolution", [[150, "150 dpi"], [300, "300 dpi"], [600, "600 dpi"], [1200, "1200 dpi"]]), tog("transparent", "Transparent background")),
     sec("Advanced: Python"),
-    note("For anything the menus don't cover. This is real matplotlib, running on your computer."),
+    note("For anything the menus don't cover. This is real matplotlib, running on your computer. Prefer plain English? Type into the command bar above your figure."),
     area("custom_rc", "Matplotlib settings", { rows: 3, placeholder: "lines.solid_capstyle: round\naxes.titlepad: 14", hint: "One rcParams setting per line, as key: value." }),
     area("custom_code", "Your Python code", { rows: 6, placeholder: "# runs after each figure is drawn\n# fig, ax, plt, np and pd are ready to use\nax.set_yticks([0, 50, 100])" }),
     { type: "examples" },
@@ -1153,6 +1153,7 @@ function renderEmptyStage() {
   lastResult = null;
   $("#error-box").hidden = true;
   $("#results").hidden = true;
+  $("#command-form").hidden = true;
   $("#figures").innerHTML = `<div class="loading-card" style="margin:40px auto">
     <h2>Add data to see your figure</h2>
     <p class="fine">Go to step 2 and paste a table, or pick an analysis in step 1 and press <b>Try example</b>.</p>
@@ -1179,10 +1180,12 @@ function renderResults(out) {
     $("#figures").innerHTML = "";
     $("#results").hidden = true;
     lastResult = null;
+    $("#command-form").hidden = true;
     return;
   }
   err.hidden = true;
   const r = out.ok;
+  const firstResult = !lastResult;
   const groupsChanged = JSON.stringify(lastResult?.group_styles || null) !== JSON.stringify(r.group_styles || null);
   lastResult = r;
   if (groupsChanged && state.step === "style") renderStyle();
@@ -1225,6 +1228,8 @@ function renderResults(out) {
     <div><button type="button" class="btn btn-primary btn-small" id="btn-script">Download Python script</button></div>
     <pre class="code-peek">${esc(scriptPeek())}</pre>`;
   $("#results").hidden = false;
+  if (firstResult || groupsChanged) renderCommandBar();
+  $("#command-form").hidden = false;
 }
 
 // ============================================================================
@@ -1287,6 +1292,125 @@ function copyFigure(index) {
 function saveProject() {
   download(slug(state.name) + ".serpentine.json", JSON.stringify(state, null, 1), "application/json");
   toast("Project saved to your downloads");
+}
+
+// ============================================================================
+// Plain-English commands
+// ============================================================================
+const colorCanvas = document.createElement("canvas").getContext("2d");
+function parseColor(word) {
+  if (!/^[a-z]+$/i.test(word)) return null;
+  colorCanvas.fillStyle = "#010203";
+  colorCanvas.fillStyle = word;
+  const v = colorCanvas.fillStyle;
+  return v !== "#010203" && v.startsWith("#") ? v : null;
+}
+
+const commandHistory = [];
+let commandIndex = 0;
+
+const COMMAND_HELP = [
+  ["Gridlines & legend", ["remove gridlines", "dashed horizontal gridlines", "hide the legend", "legend at the top left"]],
+  ["Groups", ["make Saline red", "rename Saline to Control", "square markers for Morphine", "striped bars for Vehicle"]],
+  ["Plot type", ["make it a violin plot", "horizontal", "solid bars", "wider bars", "hide the points"]],
+  ["Colors", ["use viridis", "colorblind friendly colors", "reverse the colors", "dark background", "make the text white"]],
+  ["Text", ["title Day 21", "y axis label Volume (mm³)", "font size 12", "use Lato", "bold axis labels", "panel letter B"]],
+  ["Axes", ["remove the top and right axes", "box around the plot", "floating axes", "y axis from 0 to 1000", "log scale", "ticks inside", "rotate the labels 45"]],
+  ["Stats marks", ["show exact p values", "hide the stars", "show n under each group", "use SD", "no caps on error bars"]],
+  ["Size & more", ["6 by 4 inches", "89 mm wide", "make it bigger", "reference line at 100", "use the journal style", "undo"]],
+];
+
+function commandExamples() {
+  const g = lastResult?.group_styles?.[0]?.label || "the first group";
+  const base = ["remove gridlines", `make ${g} red`, "dark background", "font size 12", "use viridis"];
+  if (state.analysis === "compare" || state.analysis === "timecourse") base.splice(2, 0, "horizontal violin plot");
+  else base.splice(2, 0, "hide the legend");
+  return base;
+}
+
+function renderCommandBar() {
+  const form = $("#command-form");
+  form.hidden = !lastResult;
+  if (!lastResult) return;
+  $("#command-examples").innerHTML = '<span class="hint" style="align-self:center">Try:</span>' + commandExamples().map((e) => `<button type="button" data-cmd="${esc(e)}">${esc(e)}</button>`).join("");
+}
+
+function runCommand(text) {
+  text = text.trim();
+  if (!text) return;
+  commandHistory.push(text);
+  commandIndex = commandHistory.length;
+  let undid = false;
+  const settings = state.settings[state.analysis];
+  const before = JSON.stringify(settings);
+  const res = interpretCommand(text, {
+    style: state.style,
+    settings,
+    analysis: state.analysis,
+    groups: lastResult?.group_styles || [],
+    colormaps: COLORMAPS.flatMap(([, list]) => list),
+    parseColor,
+    applyPreset: (name) => {
+      const p = PRESETS.find((x) => x.name.toLowerCase() === name);
+      if (!p) return false;
+      Object.assign(state.style, clone(LOOK_DEFAULTS), p.v);
+      return true;
+    },
+    resetStyle: () => {
+      const keep = { plot_kind: state.style.plot_kind, orientation: state.style.orientation };
+      for (const k of Object.keys(state.style)) delete state.style[k];
+      Object.assign(state.style, clone(DEFAULT_STYLE), keep);
+    },
+    undo: () => { undid = true; undo(); },
+  });
+  const other = res.changes.filter((c) => c !== "Undid the last change");
+  if (other.length) {
+    if (state.step === "style") renderStyle();
+    if (JSON.stringify(settings) !== before && state.step === "settings") renderSettings();
+    changed({ delay: 10 });
+  }
+  const fb = $("#command-feedback");
+  fb.innerHTML = res.changes.map((c) => `<span class="cmd-chip">✓ ${esc(c)}</span>`).join("")
+    + res.unknown.map((u) => `<span class="cmd-chip miss">Didn't understand “${esc(u)}”. See “What can I say?” or use the Style step.</span>`).join("");
+  if (res.changes.length && !res.unknown.length) $("#command-input").value = "";
+  if (undid && !other.length) renderUndo();
+}
+
+function bindCommandBar() {
+  const form = $("#command-form");
+  const input = $("#command-input");
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    runCommand(input.value);
+  });
+  form.addEventListener("click", (e) => {
+    const ex = e.target.closest("[data-cmd]");
+    if (ex) {
+      input.value = ex.dataset.cmd;
+      runCommand(ex.dataset.cmd);
+      return;
+    }
+    if (e.target.closest("#command-help-btn")) {
+      const help = $("#command-help");
+      help.hidden = !help.hidden;
+      e.target.setAttribute("aria-expanded", String(!help.hidden));
+      if (!help.hidden && !help.innerHTML) {
+        help.innerHTML = COMMAND_HELP.map(([title, list]) => `<div><b>${esc(title)}</b>${list.map((l) => `<span>${esc(l)}</span>`).join("")}</div>`).join("")
+          + `<div><b>Tips</b><span style="font-family:inherit">Combine commands with “and” or commas. Every change can be undone with Undo or ⌘Z.</span></div>`;
+      }
+    }
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowUp" && commandHistory.length) {
+      e.preventDefault();
+      commandIndex = Math.max(0, commandIndex - 1);
+      input.value = commandHistory[commandIndex];
+    } else if (e.key === "ArrowDown" && commandHistory.length) {
+      e.preventDefault();
+      commandIndex = Math.min(commandHistory.length, commandIndex + 1);
+      input.value = commandHistory[commandIndex] || "";
+    }
+  });
 }
 
 // ============================================================================
@@ -1517,6 +1641,7 @@ function bindEvents() {
 // Start
 // ============================================================================
 bindEvents();
+bindCommandBar();
 if (!restore()) {
   state.analysis = "timecourse";
   queuedExample = "timecourse";

@@ -56,6 +56,17 @@
       </div>
     </div>
     <div id="error-box" class="callout callout-bad" hidden></div>
+    <form id="command-form" class="command" autocomplete="off" hidden>
+      <div class="command-row">
+        <svg class="command-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v10H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+        <label for="command-input" class="visually-hidden">Tell Serpentine what to change</label>
+        <input id="command-input" type="text" spellcheck="false" enterkeyhint="go" placeholder="Tell Serpentine what to change, e.g. &quot;remove gridlines and make the bars solid&quot;">
+        <button type="submit" class="btn btn-primary btn-small">Apply</button>
+      </div>
+      <div id="command-feedback" class="command-feedback" aria-live="polite"></div>
+      <div class="command-foot"><div id="command-examples" class="command-examples"></div><button type="button" class="link-btn" id="command-help-btn" aria-expanded="false">What can I say?</button></div>
+      <div id="command-help" class="command-help" hidden></div>
+    </form>
     <div id="figures" class="figures"></div>
     <div id="results" class="results" hidden>
       <div id="summary" class="summary"></div>
@@ -71,6 +82,7 @@
   </section>
 </main>
 <div id="toast" class="toast" role="status" hidden></div>
+<script src="commands.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

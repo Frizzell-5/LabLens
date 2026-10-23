@@ -247,7 +247,7 @@ footer .sp { margin-left: auto; }
   <!-- Hero -->
   <section class="hero">
     <div class="wrap">
-      <div class="eyebrow rise"><span>v0.2</span><i></i><span>Free</span><i></i><span>Runs in your browser</span></div>
+      <div class="eyebrow rise"><span>v0.3</span><i></i><span>Free</span><i></i><span>Runs in your browser</span></div>
       <h1 class="rise d1">Raw lab data in. <em>Publication figures</em> out.</h1>
       <p class="lede rise d2">Serpentine runs the statistics and draws the figures for you, using the same Python tools behind countless published studies. You choose everything from plain menus and never write a line of code. Your data stays on your computer.</p>
       <div class="cta rise d3">
@@ -360,8 +360,8 @@ footer .sp { margin-left: auto; }
         <div><h3>Every group, your way</h3><p>Rename groups and give each its own color, marker, fill pattern and line style.</p></div>
         <div><h3>Any color scheme</h3><p>Ten curated palettes, colorblind-safe options, every matplotlib colormap, or your own hex codes and backgrounds.</p></div>
         <div><h3>Real typefaces</h3><p>Built-in sans, serif and mono, plus nine web fonts that come through exactly in PNG and PDF exports.</p></div>
-        <div><h3>Axes like a pro</h3><p>Choose which axis lines to draw, offset and trim them, set tick direction, length and spacing, minor ticks, log scales and limits.</p></div>
-        <div><h3>Annotate</h3><p>Reference lines with labels, panel letters, exact p-values or stars, n under each group, legends anywhere.</p></div>
+        <div><h3>Axes and annotations</h3><p>Choose which axis lines to draw, offset and trim them, set ticks, log scales and limits, and add reference lines, panel letters and exact p-values.</p></div>
+        <div><h3>Just say it</h3><p>Type “remove gridlines and make Saline navy” and the figure changes. Plain-English commands cover colors, labels, axes, plot types, sizes and more.</p></div>
         <div><h3>Write Python if you want</h3><p>An optional box runs your own matplotlib code on the figure, and raw rcParams settings are one line each. No limits.</p></div>
       </div>
     </div>
@@ -543,6 +543,8 @@ M2      KO         29.4
               <li><strong>Grid, reference lines and legend:</strong> gridline direction and style; lines such as <code>y=100: Baseline; x=0</code>; legend position, columns, frame and title.</li>
               <li><strong>Size:</strong> width and height in inches with millimetres shown. Journal style fits a single 89&nbsp;mm column.</li>
             </ul>
+            <h4>Plain-English commands</h4>
+            <p>Above your figure is a command bar. Type what you want and press Enter, for example <code>remove gridlines</code>, <code>make Saline navy and Morphine coral</code>, <code>horizontal violin plot</code>, <code>y axis from 0 to 1000</code> or <code>title Day 21</code>. Combine several with “and” or commas. Serpentine shows exactly what it changed, and <strong>What can I say?</strong> lists the kinds of commands it understands. It runs on your computer, so it's instant and private. Press <kbd>↑</kbd> to bring back an earlier command.</p>
             <h4>Your own styles</h4>
             <p>Name the current look and press <strong>Save style</strong> to reuse it in any project. <strong>Export style file</strong> saves it as a file that colleagues can import, so a lab can share one house style.</p>
             <h4>Advanced: Python</h4>
@@ -611,7 +613,7 @@ M2      KO         29.4
 
 <footer>
   <div class="wrap">
-    <span><b style="color:var(--ink)">Serpentine</b> v0.2 · Made by Shadan Alrawi</span>
+    <span><b style="color:var(--ink)">Serpentine</b> v0.3 · Made by Shadan Alrawi</span>
     <a href="https://github.com/Frizzell-5/Serpentine">GitHub</a>
     <a href="https://github.com/Frizzell-5/Serpentine/issues">Report an issue</a>
     <span class="sp">Built on Pyodide, NumPy, SciPy, pandas and matplotlib.</span>

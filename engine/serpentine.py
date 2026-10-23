@@ -30,7 +30,7 @@ from scipy.optimize import curve_fit  # noqa: E402
 
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
-ENGINE_VERSION = "0.2.1"
+ENGINE_VERSION = "0.3.0"
 
 
 class UserError(Exception):
